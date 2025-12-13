@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EIR HP Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { font-size: 80%; }
+        .schedule-table th, .schedule-table td { font-size: 0.75rem; }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: { extend: { fontFamily: { 'inter': ['Inter', 'sans-serif'] } } }
+        }
+    </script>
+</head>
+<body class="bg-white min-h-screen pb-20">
+    <header class="border-b border-gray-100 sticky top-0 bg-white z-10">
+        <div class="max-w-2xl mx-auto px-4 py-4">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <h1 class="text-lg font-semibold text-gray-900 tracking-tight">EIR Hire Purchase</h1>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-2xl mx-auto px-4 py-6">
+        <div class="space-y-5">
+            <div class="mb-6">
+                <p class="text-sm text-gray-500">Enter financing details to generate EIR repayment schedule</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Financing Amount</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">RM</span>
+                    <input type="text" id="financingAmount" placeholder="10,000" inputmode="decimal"
+                        class="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-all text-gray-900">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Profit Rate (per annum)</label>
+                <div class="relative">
+                    <input type="text" id="profitRate" placeholder="10.00" inputmode="decimal"
+                        class="w-full pl-4 pr-12 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-all text-gray-900">
+                    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Tenure</label>
+                <div class="relative">
+                    <input type="text" id="tenure" placeholder="48" inputmode="numeric"
+                        class="w-full pl-4 pr-20 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-all text-gray-900">
+                    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">months</span>
+                </div>
+            </div>
+
+            <button onclick="calculateEIR()"
+                class="w-full py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 active:bg-black transition-all mt-6">
+                Generate Schedule
+            </button>
+        </div>
+
+        <div id="resultsSection" class="hidden mt-8">
+            <div class="border-t border-gray-100 my-8"></div>
+
+            <div class="mb-6">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Summary</h2>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <p class="text-xs text-gray-500 mb-1">APR (computed)</p>
+                    <p class="text-lg font-semibold text-gray-900" id="aprValue">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <p class="text-xs text-gray-500 mb-1">Total Profit</p>
+                    <p class="text-lg font-semibold text-gray-900" id="totalProfit">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <p class="text-xs text-gray-500 mb-1">Balance Original Payable</p>
+                    <p class="text-lg font-semibold text-gray-900" id="balancePayable">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <p class="text-xs text-gray-500 mb-1">Monthly Instalment</p>
+                    <p class="text-lg font-semibold text-gray-900" id="monthlyInstalment">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <p class="text-xs text-gray-500 mb-1">Final Instalment</p>
+                    <p class="text-lg font-semibold text-gray-900" id="finalInstalment">-</p>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Repayment Schedule</h2>
+            </div>
+
+            <div class="border border-gray-100 rounded-xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full schedule-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-medium text-gray-600">Month</th>
+                                <th class="px-4 py-3 text-right font-medium text-gray-600">Instalment</th>
+                                <th class="px-4 py-3 text-right font-medium text-gray-600">Principal EIR</th>
+                                <th class="px-4 py-3 text-right font-medium text-gray-600">Profit EIR</th>
+                                <th class="px-4 py-3 text-right font-medium text-gray-600">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleBody" class="divide-y divide-gray-50"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+        function formatNumber(num, decimals = 2) {
+            return num.toLocaleString('en-MY', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        }
+
+        // Excel: ROUND(2*D7*D8*(300*D6 + D7*D8)/((2*D7*D7*D8) + (300*D6*(D7+1))), 2)
+        function computeApr(instalmentsPerYear, totalInstalments, ratePerAnnumPercent) {
+            const D6 = instalmentsPerYear;
+            const D7 = totalInstalments;
+            const D8 = ratePerAnnumPercent;
+            const numerator = 2 * D7 * D8 * (300 * D6 + D7 * D8);
+            const denominator = (2 * D7 * D7 * D8) + (300 * D6 * (D7 + 1));
+            const aprRaw = denominator === 0 ? 0 : (numerator / denominator);
+            return round2(aprRaw);
+        }
+
+        function calculateEIR() {
+            const financingAmount = parseFloat(document.getElementById('financingAmount').value) || 0;
+            const profitRate = parseFloat(document.getElementById('profitRate').value) || 0;
+            const tenure = parseInt(document.getElementById('tenure').value) || 0;
+
+            if (financingAmount <= 0 || profitRate <= 0 || tenure <= 0) {
+                alert('Please enter valid values for all fields');
+                return;
+            }
+
+            // Use the same HP totals logic (as Rule 78):
+            const totalProfitRaw = financingAmount * (profitRate / 100) * (tenure / 12);
+            // Requirement: round UP total profit to 0 decimal places before schedule.
+            const totalProfit = Math.ceil(totalProfitRaw);
+            const balancePayable = financingAmount + totalProfit;
+            const monthlyInstalment = Math.ceil(balancePayable / tenure);
+            const finalInstalmentRaw = balancePayable - (monthlyInstalment * (tenure - 1));
+            const finalInstalment = Math.ceil(finalInstalmentRaw);
+
+            const apr = computeApr(12, tenure, profitRate);
+
+            document.getElementById('aprValue').textContent = formatNumber(apr, 2) + '%';
+            document.getElementById('totalProfit').textContent = 'RM ' + formatNumber(totalProfit, 2);
+            document.getElementById('balancePayable').textContent = 'RM ' + formatNumber(balancePayable, 2);
+            document.getElementById('monthlyInstalment').textContent = 'RM ' + formatNumber(monthlyInstalment, 2);
+            document.getElementById('finalInstalment').textContent = 'RM ' + formatNumber(finalInstalment, 2);
+
+            generateEirSchedule({
+                financingAmount,
+                tenure,
+                balancePayable,
+                totalProfit,
+                monthlyInstalment,
+                finalInstalment,
+                apr
+            });
+
+            document.getElementById('resultsSection').classList.remove('hidden');
+            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Excel profit per month: ROUND((D2 - AccumPrincipalPrev) * APR/100/12, 2)
+        function generateEirSchedule({ financingAmount, tenure, balancePayable, totalProfit, monthlyInstalment, finalInstalment, apr }) {
+            const tbody = document.getElementById('scheduleBody');
+            tbody.innerHTML = '';
+
+            let accumPrincipal = 0; // accumulated principal earned so far up to previous instalment
+            let profitPaid = 0;
+            let remainingBalance = balancePayable;
+
+            for (let month = 1; month <= tenure; month++) {
+                const instalment = (month === tenure) ? finalInstalment : monthlyInstalment;
+
+                const outstandingPrincipal = financingAmount - accumPrincipal;
+                const profitRaw = outstandingPrincipal * (apr / 100) / 12;
+                let profitPortion = round2(profitRaw);
+
+                // Ensure Profit EIR totals tally to Total Profit (especially due to rounding):
+                if (month === tenure) {
+                    profitPortion = round2(totalProfit - profitPaid);
+                    if (profitPortion < 0) profitPortion = 0;
+                }
+
+                const principalPortion = round2(instalment - profitPortion);
+                accumPrincipal = round2(accumPrincipal + principalPortion);
+                profitPaid = round2(profitPaid + profitPortion);
+
+                remainingBalance = remainingBalance - instalment;
+                const displayBalance = (month === tenure) ? 0 : remainingBalance;
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition-colors';
+                row.innerHTML = `
+                    <td class="px-4 py-3 text-gray-900">${month}</td>
+                    <td class="px-4 py-3 text-right text-gray-900">${formatNumber(instalment)}</td>
+                    <td class="px-4 py-3 text-right text-gray-600">${formatNumber(principalPortion)}</td>
+                    <td class="px-4 py-3 text-right text-gray-600">${formatNumber(profitPortion)}</td>
+                    <td class="px-4 py-3 text-right text-gray-900 font-medium">${formatNumber(Math.max(0, displayBalance))}</td>
+                `;
+                tbody.appendChild(row);
+            }
+        }
+
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') calculateEIR();
+        });
+    </script>
+</body>
+</html>
+
