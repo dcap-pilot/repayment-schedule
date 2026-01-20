@@ -193,6 +193,22 @@
             });
         }
 
+        // Excel APR:
+        // ROUND(2*D7*D8*(300*D6 + D7*D8)/((2*D7*D7*D8) + (300*D6*(D7+1))), 2)
+        function round2(n) {
+            return Math.round((n + Number.EPSILON) * 100) / 100;
+        }
+
+        function computeApr(instalmentsPerYear, totalInstalments, ratePerAnnumPercent) {
+            const D6 = instalmentsPerYear;
+            const D7 = totalInstalments;
+            const D8 = ratePerAnnumPercent;
+            const numerator = 2 * D7 * D8 * (300 * D6 + D7 * D8);
+            const denominator = (2 * D7 * D7 * D8) + (300 * D6 * (D7 + 1));
+            const aprRaw = denominator === 0 ? 0 : (numerator / denominator);
+            return round2(aprRaw);
+        }
+
         function downloadTemplate() {
             const template = 'No.,Financing Amount,Profit Rate,Tenure\n1,10000,10,48\n2,15000,8.5,36\n3,20000,9,60';
             const blob = new Blob([template], { type: 'text/csv' });
@@ -343,13 +359,13 @@
             }
 
             // Generate CSV content
-            let csvContent = 'No.,Financing Amount,Profit Rate (%),Tenure (months),Total Profit,Balance Original Payable,Monthly Instalment,Final Instalment,Month,Instalment,Principal R78,Profit R78,Balance\n';
+            let csvContent = 'No.,Financing Amount,Profit Rate (%),Tenure (months),APR (%),Total Profit,Balance Original Payable,Monthly Instalment,Final Instalment,Month,Instalment,Principal R78,Profit R78,Balance\n';
 
             uploadedData.forEach(row => {
                 const schedule = calculateScheduleForRow(row);
                 
                 // First row with summary data
-                csvContent += `${row.no},${row.financingAmount},${row.profitRate},${row.tenure},${schedule.totalProfit.toFixed(2)},${schedule.balancePayable.toFixed(2)},${schedule.monthlyInstalment.toFixed(2)},${schedule.finalInstalment.toFixed(2)},`;
+                csvContent += `${row.no},${row.financingAmount},${row.profitRate},${row.tenure},${schedule.apr.toFixed(2)},${schedule.totalProfit.toFixed(2)},${schedule.balancePayable.toFixed(2)},${schedule.monthlyInstalment.toFixed(2)},${schedule.finalInstalment.toFixed(2)},`;
                 
                 // Add first month data
                 if (schedule.rows.length > 0) {
@@ -360,7 +376,7 @@
                 // Add remaining months
                 for (let i = 1; i < schedule.rows.length; i++) {
                     const scheduleRow = schedule.rows[i];
-                    csvContent += `,,,,,,,,${scheduleRow.month},${scheduleRow.instalment.toFixed(2)},${scheduleRow.principal.toFixed(2)},${scheduleRow.profit.toFixed(2)},${scheduleRow.balance.toFixed(2)}\n`;
+                    csvContent += `,,,,,,,,,${scheduleRow.month},${scheduleRow.instalment.toFixed(2)},${scheduleRow.principal.toFixed(2)},${scheduleRow.profit.toFixed(2)},${scheduleRow.balance.toFixed(2)}\n`;
                 }
 
                 // Add empty row between entries
@@ -385,6 +401,8 @@
             const financingAmount = row.financingAmount;
             const profitRate = row.profitRate;
             const tenure = row.tenure;
+
+            const apr = computeApr(12, tenure, profitRate);
 
             // Calculate values
             // Requirement: round UP Total Profit to 0 decimal places before generating schedule
@@ -429,6 +447,7 @@
             }
 
             return {
+                apr,
                 totalProfit,
                 balancePayable,
                 monthlyInstalment,

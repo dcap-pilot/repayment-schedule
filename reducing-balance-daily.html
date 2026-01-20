@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reducing Balance Daily Interest Schedule Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        body {
+            font-size: 90%;
+        }
+        .data-table th,
+        .data-table td {
+            font-size: 0.75rem;
+        }
+        .data-table input {
+            font-size: 0.75rem;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-white min-h-screen pb-20">
+    <header class="border-b border-gray-100 sticky top-0 bg-white z-10">
+        <div class="max-w-5xl mx-auto px-4 py-4">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-lg font-semibold text-gray-900 tracking-tight">Reducing Balance Daily Interest Schedule Generator</h1>
+                    <p class="text-xs text-gray-500">Generate reducing-balance schedules for Malaysia hire purchase</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 py-6">
+        <section class="mb-8">
+            <div class="mb-4">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Inputs</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Financing Amount (RM)</label>
+                            <input id="financingAmount" type="number" value="10000" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Flat Profit Rate (%)</label>
+                            <input id="flatRate" type="number" step="0.01" value="10.00" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Tenure (months)</label>
+                            <input id="tenureMonths" type="number" value="36" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Disbursement Date</label>
+                            <input id="disbursementDate" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Payment Day of Month</label>
+                            <input id="paymentDay" type="number" min="1" max="31" value="25" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border border-gray-100 rounded-xl p-4 bg-gray-50">
+                    <h3 class="text-xs font-medium text-gray-700 mb-2">Daily Interest Logic</h3>
+                    <ul class="text-xs text-gray-600 space-y-1">
+                        <li>Flat rate is converted to APR (EIR) using the Malaysia HP formula.</li>
+                        <li>Daily rate uses actual days in year (365/366).</li>
+                        <li>Interest per period = Opening balance × daily rate × actual days.</li>
+                        <li>Monthly instalment uses standard amortization with APR / 12.</li>
+                        <li>Principal = Instalment - Interest; last instalment clears remaining balance.</li>
+                    </ul>
+                    <div class="mt-3">
+                        <p class="text-xs text-gray-500">Instalments are rounded up to 0 decimals.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 flex gap-3">
+                <button onclick="generateSchedule()" class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-all">Generate Schedule</button>
+                <button onclick="downloadSchedule()" class="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all">Download CSV</button>
+            </div>
+        </section>
+
+        <section id="summarySection" class="hidden mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">APR / EIR (%)</p>
+                    <p id="summaryApr" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Monthly Instalment (RM)</p>
+                    <p id="summaryInstalment" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Total Interest (RM)</p>
+                    <p id="summaryInterest" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Total Principal (RM)</p>
+                    <p id="summaryPrincipal" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Total Paid (RM)</p>
+                    <p id="summaryTotalPaid" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="tableSection" class="hidden">
+            <div class="border border-gray-100 rounded-xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full data-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-2 text-left font-medium text-gray-600">Month</th>
+                                <th class="px-3 py-2 text-left font-medium text-gray-600">Due Date</th>
+                                <th class="px-3 py-2 text-right font-medium text-gray-600">Days</th>
+                                <th class="px-3 py-2 text-right font-medium text-gray-600">Opening Balance</th>
+                                <th class="px-3 py-2 text-right font-medium text-gray-600">Instalment</th>
+                                <th class="px-3 py-2 text-right font-medium text-gray-600">Interest (Daily)</th>
+                                <th class="px-3 py-2 text-right font-medium text-gray-600">Principal</th>
+                                <th class="px-3 py-2 text-right font-medium text-gray-600">Closing Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleBody" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="mt-8">
+            <div class="border border-gray-100 rounded-xl p-4 bg-gray-50">
+                <h3 class="text-sm font-medium text-gray-700 mb-2">How this generator works</h3>
+                <ol class="text-xs text-gray-600 space-y-1 list-decimal ml-4">
+                    <li>The generator assumes monthly instalments but recognizes profit daily.</li>
+                    <li>Each period uses actual day count between the previous due date and the next due date.</li>
+                    <li>Interest is computed on reducing balance using daily rate; principal is the remainder.</li>
+                    <li>Final instalment is adjusted to fully settle outstanding balance.</li>
+                </ol>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let currentSchedule = [];
+        let currentSummary = null;
+
+        function round2(value) {
+            return Math.round((value + Number.EPSILON) * 100) / 100;
+        }
+
+        function truncate2(value) {
+            return Math.trunc(value * 100) / 100;
+        }
+
+        function formatNumber(num, decimals = 2) {
+            return num.toLocaleString('en-MY', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
+        function getLastDayOfMonth(year, monthIndex) {
+            return new Date(year, monthIndex + 1, 0).getDate();
+        }
+
+        function buildDueDates(disbursementDate, paymentDay, tenureMonths) {
+            const dates = [];
+            let year = disbursementDate.getFullYear();
+            let monthIndex = disbursementDate.getMonth();
+
+            for (let i = 0; i < tenureMonths; i++) {
+                monthIndex += 1;
+                if (monthIndex > 11) {
+                    monthIndex = 0;
+                    year += 1;
+                }
+                const lastDay = getLastDayOfMonth(year, monthIndex);
+                const day = Math.min(paymentDay, lastDay);
+                dates.push(new Date(year, monthIndex, day));
+            }
+            return dates;
+        }
+
+        function daysBetween(startDate, endDate) {
+            const msPerDay = 24 * 60 * 60 * 1000;
+            const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+            const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+            return Math.round((end - start) / msPerDay);
+        }
+
+        function daysInYear(year) {
+            const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+            return isLeap ? 366 : 365;
+        }
+
+        function calculateInterestWithActualYearDays(balance, startDate, endDate, annualRatePercent) {
+            const days = daysBetween(startDate, endDate);
+            const yearDays = daysInYear(endDate.getFullYear());
+            return balance * (annualRatePercent / 100) * (days / yearDays);
+        }
+
+        function calculateMonthlyInstalment(principal, annualRatePercent, tenureMonths) {
+            const monthlyRate = annualRatePercent / 100 / 12;
+            if (monthlyRate === 0) {
+                return principal / tenureMonths;
+            }
+            const factor = Math.pow(1 + monthlyRate, tenureMonths);
+            return principal * (monthlyRate * factor) / (factor - 1);
+        }
+
+        function computeApr(instalmentsPerYear, totalInstalments, ratePerAnnumPercent) {
+            const D6 = instalmentsPerYear;
+            const D7 = totalInstalments;
+            const D8 = ratePerAnnumPercent;
+            const numerator = 2 * D7 * D8 * (300 * D6 + D7 * D8);
+            const denominator = (2 * D7 * D7 * D8) + (300 * D6 * (D7 + 1));
+            const aprRaw = denominator === 0 ? 0 : (numerator / denominator);
+            return round2(aprRaw);
+        }
+
+        function generateSchedule() {
+            const financingAmount = parseFloat(document.getElementById('financingAmount').value) || 0;
+            const flatRate = parseFloat(document.getElementById('flatRate').value) || 0;
+            const tenureMonths = parseInt(document.getElementById('tenureMonths').value, 10) || 0;
+            const disbursementDateValue = document.getElementById('disbursementDate').value;
+            const paymentDay = parseInt(document.getElementById('paymentDay').value, 10) || 1;
+            if (!disbursementDateValue || financingAmount <= 0 || flatRate < 0 || tenureMonths <= 0) {
+                alert('Please enter valid financing amount, flat rate, tenure, and disbursement date.');
+                return;
+            }
+
+            const disbursementDate = new Date(disbursementDateValue);
+            const dueDates = buildDueDates(disbursementDate, paymentDay, tenureMonths);
+
+            const aprRate = computeApr(12, tenureMonths, flatRate);
+            const totalInterestFlat = truncate2(financingAmount * (flatRate / 100) * (tenureMonths / 12));
+            let openingBalance = financingAmount;
+            let totalInterestCharged = 0;
+            let totalPrincipalPaid = 0;
+            let totalPaid = 0;
+
+            const baseInstalment = calculateMonthlyInstalment(financingAmount, aprRate, tenureMonths);
+            const roundedInstalment = Math.ceil(baseInstalment);
+
+            let lastDate = disbursementDate;
+            currentSchedule = [];
+
+            dueDates.forEach((dueDate, index) => {
+                const days = daysBetween(lastDate, dueDate);
+                const interestRaw = calculateInterestWithActualYearDays(openingBalance, lastDate, dueDate, aprRate);
+                let interest = truncate2(interestRaw);
+                let instalment = roundedInstalment;
+                let principal = instalment - interest;
+
+                if (index === dueDates.length - 1) {
+                    const remainingInterest = truncate2(totalInterestFlat - totalInterestCharged);
+                    const remainingPrincipal = truncate2(financingAmount - totalPrincipalPaid);
+                    interest = remainingInterest;
+                    principal = remainingPrincipal;
+                    instalment = principal + interest;
+                }
+
+                const closingBalance = openingBalance - principal;
+
+                totalInterestCharged += interest;
+                totalPrincipalPaid += principal;
+                totalPaid += instalment;
+
+                currentSchedule.push({
+                    month: index + 1,
+                    dueDate,
+                    days,
+                    openingBalance,
+                    instalment,
+                    interest,
+                    principal,
+                    closingBalance: Math.max(0, closingBalance)
+                });
+
+                openingBalance = closingBalance;
+                lastDate = dueDate;
+            });
+
+            currentSummary = {
+                aprRate,
+                monthlyInstalment: roundedInstalment,
+                totalInterest: totalInterestFlat,
+                totalPrincipal: financingAmount,
+                totalPaid
+            };
+
+            renderSchedule();
+        }
+
+        function renderSchedule() {
+            const summarySection = document.getElementById('summarySection');
+            const tableSection = document.getElementById('tableSection');
+            const scheduleBody = document.getElementById('scheduleBody');
+
+            summarySection.classList.remove('hidden');
+            tableSection.classList.remove('hidden');
+            scheduleBody.innerHTML = '';
+
+            document.getElementById('summaryApr').textContent = formatNumber(currentSummary.aprRate, 2);
+            document.getElementById('summaryInstalment').textContent = formatNumber(currentSummary.monthlyInstalment, 0);
+            document.getElementById('summaryInterest').textContent = formatNumber(truncate2(currentSummary.totalInterest));
+            document.getElementById('summaryPrincipal').textContent = formatNumber(truncate2(currentSummary.totalPrincipal));
+            document.getElementById('summaryTotalPaid').textContent = formatNumber(truncate2(currentSummary.totalPaid));
+
+            currentSchedule.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-3 py-2 text-gray-700">${row.month}</td>
+                    <td class="px-3 py-2 text-gray-700">${row.dueDate.toLocaleDateString('en-MY')}</td>
+                    <td class="px-3 py-2 text-right text-gray-700">${row.days}</td>
+                    <td class="px-3 py-2 text-right text-gray-700">${formatNumber(row.openingBalance)}</td>
+                    <td class="px-3 py-2 text-right text-gray-700">${formatNumber(row.instalment)}</td>
+                    <td class="px-3 py-2 text-right text-gray-700">${formatNumber(row.interest)}</td>
+                    <td class="px-3 py-2 text-right text-gray-700">${formatNumber(row.principal)}</td>
+                    <td class="px-3 py-2 text-right text-gray-700">${formatNumber(row.closingBalance)}</td>
+                `;
+                scheduleBody.appendChild(tr);
+            });
+        }
+
+        function downloadSchedule() {
+            if (currentSchedule.length === 0) {
+                alert('Generate a schedule first.');
+                return;
+            }
+
+            let csvContent = 'Month,Due Date,Days,Opening Balance,Instalment,Interest (Daily),Principal,Closing Balance\n';
+            currentSchedule.forEach(row => {
+                csvContent += [
+                    row.month,
+                    row.dueDate.toISOString().slice(0, 10),
+                    row.days,
+                    row.openingBalance.toFixed(2),
+                    row.instalment.toFixed(2),
+                    row.interest.toFixed(2),
+                    row.principal.toFixed(2),
+                    row.closingBalance.toFixed(2)
+                ].join(',') + '\n';
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reducing_balance_daily_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        (function initDefaults() {
+            const today = new Date();
+            const iso = today.toISOString().slice(0, 10);
+            document.getElementById('disbursementDate').value = iso;
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reducing Balance Logic Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        body {
+            font-size: 90%;
+        }
+        .data-table th,
+        .data-table td {
+            font-size: 0.7rem;
+        }
+        .data-table input {
+            font-size: 0.7rem;
+        }
+        .payment-row {
+            background-color: #f0fdf4;
+        }
+        .interest-highlight {
+            background-color: #fef3c7;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-white min-h-screen pb-20">
+    <header class="border-b border-gray-100 sticky top-0 bg-white z-10">
+        <div class="max-w-6xl mx-auto px-4 py-4">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-lg font-semibold text-gray-900 tracking-tight">Reducing Balance Logic Simulator</h1>
+                    <p class="text-xs text-gray-500">See exactly how daily interest accrues and payments are applied</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-6">
+        <!-- How It Works Section -->
+        <section class="mb-6">
+            <div class="border border-blue-100 rounded-xl p-4 bg-blue-50">
+                <h3 class="text-sm font-semibold text-blue-800 mb-2">How Banks Calculate Daily Interest (Reducing Balance Method)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-blue-700">
+                    <div>
+                        <p class="font-medium mb-1">Step 1: Convert Flat Rate to APR</p>
+                        <ul class="list-disc ml-4 space-y-1">
+                            <li>Flat rate is the quoted rate (e.g., 3.5% p.a.)</li>
+                            <li>APR/EIR is the effective rate used for daily calculation</li>
+                            <li>Malaysia HP Formula converts flat → APR</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p class="font-medium mb-1">Step 2: Daily Interest Calculation</p>
+                        <ul class="list-disc ml-4 space-y-1">
+                            <li><strong>Daily Rate</strong> = APR ÷ 365 (or 366)</li>
+                            <li><strong>Daily Interest</strong> = Principal × Daily Rate</li>
+                            <li>Interest accrues every day on remaining balance</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p class="font-medium mb-1">Step 3: Payment Allocation</p>
+                        <ul class="list-disc ml-4 space-y-1">
+                            <li>Payment first covers <strong>accrued interest</strong></li>
+                            <li>Remaining amount reduces the <strong>principal</strong></li>
+                            <li>Tomorrow's interest is on the new lower balance</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Input Section -->
+        <section class="mb-6">
+            <div class="mb-4">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Loan Setup</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <label class="block text-xs text-gray-500 mb-1">Principal Amount (RM)</label>
+                    <input id="principal" type="number" value="10000" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                </div>
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <label class="block text-xs text-gray-500 mb-1">Flat Profit Rate (% p.a.)</label>
+                    <input id="flatRate" type="number" step="0.01" value="3.50" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                </div>
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <label class="block text-xs text-gray-500 mb-1">Tenure (months)</label>
+                    <input id="tenureMonths" type="number" value="108" min="1" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                </div>
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <label class="block text-xs text-gray-500 mb-1">Start Date</label>
+                    <input id="startDate" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-400">
+                </div>
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <label class="block text-xs text-gray-500 mb-1">Simulation Days</label>
+                    <input id="simulationDays" type="number" value="60" min="1" max="365" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                </div>
+            </div>
+        </section>
+
+        <!-- APR Conversion Display -->
+        <section class="mb-6">
+            <div class="border border-amber-100 rounded-xl p-4 bg-amber-50">
+                <h3 class="text-xs font-semibold text-amber-800 mb-2">Malaysia HP Formula: Flat Rate → APR/EIR Conversion</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-amber-700 font-mono">
+                    <div>
+                        <p class="mb-1">APR = [2 × n × r × (300 × 12 + n × r)] ÷ [(2 × n² × r) + (300 × 12 × (n + 1))]</p>
+                        <p class="text-amber-600">Where: n = tenure (months), r = flat rate (%), 12 = instalments/year</p>
+                    </div>
+                    <div id="aprConversionResult" class="bg-white rounded-lg p-3 border border-amber-200">
+                        <p><span class="text-amber-600">Flat Rate:</span> <span id="displayFlatRate">-</span>% p.a.</p>
+                        <p><span class="text-amber-600">Tenure:</span> <span id="displayTenure">-</span> months</p>
+                        <p class="text-lg font-bold text-amber-800 mt-1">APR/EIR: <span id="displayApr">-</span>% p.a.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Payment Schedule Section -->
+        <section class="mb-6">
+            <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Payment Schedule</h2>
+                <button onclick="addPayment()" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-all">+ Add Payment</button>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <div id="paymentsContainer" class="space-y-2">
+                    <div class="payment-entry flex items-center gap-3">
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-500 mb-1">Payment Date</label>
+                            <input type="date" class="payment-date w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-400">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-500 mb-1">Payment Amount (RM)</label>
+                            <input type="number" value="500" class="payment-amount w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                        </div>
+                        <button onclick="removePayment(this)" class="mt-5 text-gray-400 hover:text-red-500 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-3">Add payments on specific dates to see how they reduce your principal and interest</p>
+            </div>
+        </section>
+
+        <div class="mb-6">
+            <button onclick="runSimulation()" class="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-all">Run Simulation</button>
+            <button onclick="downloadSimulation()" class="ml-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all">Download CSV</button>
+        </div>
+
+        <!-- Summary Section -->
+        <section id="summarySection" class="hidden mb-6">
+            <div class="mb-4">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Summary</h2>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+                <div class="border border-amber-100 rounded-lg p-3 bg-amber-50">
+                    <p class="text-xs text-amber-600">APR/EIR (Effective)</p>
+                    <p id="summaryApr" class="text-sm font-semibold text-amber-800">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Daily Rate</p>
+                    <p id="summaryDailyRate" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Total Interest Accrued</p>
+                    <p id="summaryTotalInterest" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Total Payments Made</p>
+                    <p id="summaryTotalPayments" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Principal Paid</p>
+                    <p id="summaryPrincipalPaid" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Outstanding Balance</p>
+                    <p id="summaryOutstanding" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Formula Display -->
+        <section id="formulaSection" class="hidden mb-6">
+            <div class="border border-gray-100 rounded-xl p-4 bg-gray-50">
+                <h3 class="text-xs font-medium text-gray-700 mb-2">Calculation Details</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-600 font-mono">
+                    <div>
+                        <p><span class="text-gray-400">Flat Rate (Input):</span> <span id="formulaFlatRate">-</span>% p.a.</p>
+                        <p><span class="text-gray-400">APR/EIR (Converted):</span> <span id="formulaAnnualRate">-</span>% p.a.</p>
+                        <p><span class="text-gray-400">Days in Year:</span> <span id="formulaDaysInYear">-</span></p>
+                        <p><span class="text-gray-400">Daily Rate:</span> <span id="formulaDailyRate">-</span>% per day</p>
+                    </div>
+                    <div>
+                        <p><span class="text-gray-400">Formula:</span> Daily Interest = Principal × (APR ÷ <span id="formulaDaysInYear2">-</span>)</p>
+                        <p><span class="text-gray-400">Example:</span> RM <span id="formulaExamplePrincipal">-</span> × <span id="formulaExampleRate">-</span> = RM <span id="formulaExampleInterest">-</span>/day</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Daily Breakdown Table -->
+        <section id="tableSection" class="hidden">
+            <div class="mb-4">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Day-by-Day Breakdown</h2>
+            </div>
+            <div class="border border-gray-100 rounded-xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full data-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-2 py-2 text-left font-medium text-gray-600">Day</th>
+                                <th class="px-2 py-2 text-left font-medium text-gray-600">Date</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">Opening Balance</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">Daily Interest</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">Accrued Interest</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">Payment</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">→ To Interest</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">→ To Principal</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">Closing Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody id="simulationBody" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Explanation Section -->
+        <section class="mt-8">
+            <div class="border border-gray-100 rounded-xl p-4 bg-gray-50">
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Understanding the Simulation</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <h4 class="text-xs font-semibold text-gray-600 mb-1">Flat Rate vs APR/EIR</h4>
+                        <ul class="text-xs text-gray-600 space-y-1">
+                            <li><strong>Flat Rate:</strong> The advertised rate banks quote</li>
+                            <li><strong>APR/EIR:</strong> The actual effective rate used</li>
+                            <li>APR is always higher than flat rate</li>
+                            <li>Malaysia HP formula converts between them</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-semibold text-gray-600 mb-1">Column Definitions</h4>
+                        <ul class="text-xs text-gray-600 space-y-1">
+                            <li><strong>Opening Balance:</strong> Principal at start of day</li>
+                            <li><strong>Daily Interest:</strong> Interest charged for this day</li>
+                            <li><strong>Accrued Interest:</strong> Total unpaid interest accumulated</li>
+                            <li><strong>→ To Interest/Principal:</strong> Payment allocation</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-semibold text-gray-600 mb-1">Key Insights</h4>
+                        <ul class="text-xs text-gray-600 space-y-1">
+                            <li>Interest accrues daily on the outstanding principal</li>
+                            <li>Payments first clear accrued interest, then reduce principal</li>
+                            <li>Paying early reduces total interest (less days of accrual)</li>
+                            <li>Larger payments = more goes to principal = less future interest</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let simulationData = [];
+
+        function formatNumber(num, decimals = 2) {
+            return num.toLocaleString('en-MY', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('en-MY', { 
+                day: '2-digit', 
+                month: 'short', 
+                year: 'numeric' 
+            });
+        }
+
+        function round2(value) {
+            return Math.round((value + Number.EPSILON) * 100) / 100;
+        }
+
+        function isLeapYear(year) {
+            return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+        }
+
+        function getDaysInYear(date) {
+            return isLeapYear(date.getFullYear()) ? 366 : 365;
+        }
+
+        // Malaysia HP Formula: Convert Flat Rate to APR/EIR
+        function computeApr(instalmentsPerYear, totalInstalments, ratePerAnnumPercent) {
+            const D6 = instalmentsPerYear;      // 12 (monthly payments)
+            const D7 = totalInstalments;         // e.g., 36, 60, 108 months
+            const D8 = ratePerAnnumPercent;      // Flat rate, e.g., 3.5%
+            
+            const numerator = 2 * D7 * D8 * (300 * D6 + D7 * D8);
+            const denominator = (2 * D7 * D7 * D8) + (300 * D6 * (D7 + 1));
+            const aprRaw = denominator === 0 ? 0 : (numerator / denominator);
+            
+            return round2(aprRaw);
+        }
+
+        function addPayment() {
+            const container = document.getElementById('paymentsContainer');
+            const entry = document.createElement('div');
+            entry.className = 'payment-entry flex items-center gap-3';
+            entry.innerHTML = `
+                <div class="flex-1">
+                    <label class="block text-xs text-gray-500 mb-1">Payment Date</label>
+                    <input type="date" class="payment-date w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-400">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-xs text-gray-500 mb-1">Payment Amount (RM)</label>
+                    <input type="number" value="500" class="payment-amount w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                </div>
+                <button onclick="removePayment(this)" class="mt-5 text-gray-400 hover:text-red-500 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            `;
+            container.appendChild(entry);
+        }
+
+        function removePayment(btn) {
+            const entries = document.querySelectorAll('.payment-entry');
+            if (entries.length > 1) {
+                btn.closest('.payment-entry').remove();
+            }
+        }
+
+        function getPayments() {
+            const payments = {};
+            document.querySelectorAll('.payment-entry').forEach(entry => {
+                const dateInput = entry.querySelector('.payment-date').value;
+                const amount = parseFloat(entry.querySelector('.payment-amount').value) || 0;
+                if (dateInput && amount > 0) {
+                    const dateKey = dateInput;
+                    payments[dateKey] = (payments[dateKey] || 0) + amount;
+                }
+            });
+            return payments;
+        }
+
+        // Update APR display when inputs change
+        function updateAprDisplay() {
+            const flatRate = parseFloat(document.getElementById('flatRate').value) || 0;
+            const tenureMonths = parseInt(document.getElementById('tenureMonths').value) || 0;
+            
+            if (flatRate > 0 && tenureMonths > 0) {
+                const apr = computeApr(12, tenureMonths, flatRate);
+                document.getElementById('displayFlatRate').textContent = formatNumber(flatRate, 2);
+                document.getElementById('displayTenure').textContent = tenureMonths;
+                document.getElementById('displayApr').textContent = formatNumber(apr, 2);
+            }
+        }
+
+        function runSimulation() {
+            const principal = parseFloat(document.getElementById('principal').value) || 0;
+            const flatRate = parseFloat(document.getElementById('flatRate').value) || 0;
+            const tenureMonths = parseInt(document.getElementById('tenureMonths').value) || 0;
+            const startDateValue = document.getElementById('startDate').value;
+            const simulationDays = parseInt(document.getElementById('simulationDays').value) || 30;
+
+            if (!startDateValue || principal <= 0 || tenureMonths <= 0) {
+                alert('Please enter valid principal, tenure, and start date.');
+                return;
+            }
+
+            // Convert Flat Rate to APR using Malaysia HP Formula
+            const aprRate = computeApr(12, tenureMonths, flatRate);
+            
+            // Update APR conversion display
+            document.getElementById('displayFlatRate').textContent = formatNumber(flatRate, 2);
+            document.getElementById('displayTenure').textContent = tenureMonths;
+            document.getElementById('displayApr').textContent = formatNumber(aprRate, 2);
+
+            const startDate = new Date(startDateValue);
+            const payments = getPayments();
+
+            // Calculate daily rate using APR (not flat rate)
+            const daysInYear = getDaysInYear(startDate);
+            const dailyRatePercent = aprRate / daysInYear;
+            const dailyRateDecimal = dailyRatePercent / 100;
+
+            // Initialize simulation
+            simulationData = [];
+            let currentPrincipal = principal;
+            let accruedInterest = 0;
+            let totalInterestAccrued = 0;
+            let totalPayments = 0;
+            let totalPrincipalPaid = 0;
+
+            // Run day by day
+            for (let day = 0; day < simulationDays; day++) {
+                const currentDate = new Date(startDate);
+                currentDate.setDate(startDate.getDate() + day);
+                const dateKey = currentDate.toISOString().slice(0, 10);
+
+                // Calculate daily interest on current principal using APR
+                const dailyInterest = currentPrincipal * dailyRateDecimal;
+                accruedInterest += dailyInterest;
+                totalInterestAccrued += dailyInterest;
+
+                // Check for payment on this day
+                const payment = payments[dateKey] || 0;
+                let toInterest = 0;
+                let toPrincipal = 0;
+
+                if (payment > 0) {
+                    totalPayments += payment;
+
+                    // Payment allocation: interest first, then principal
+                    if (payment <= accruedInterest) {
+                        // Payment only covers part of accrued interest
+                        toInterest = payment;
+                        toPrincipal = 0;
+                        accruedInterest -= payment;
+                    } else {
+                        // Payment covers all accrued interest and reduces principal
+                        toInterest = accruedInterest;
+                        toPrincipal = payment - accruedInterest;
+                        accruedInterest = 0;
+
+                        // Reduce principal (cannot go below 0)
+                        toPrincipal = Math.min(toPrincipal, currentPrincipal);
+                        currentPrincipal -= toPrincipal;
+                        totalPrincipalPaid += toPrincipal;
+                    }
+                }
+
+                simulationData.push({
+                    day: day + 1,
+                    date: new Date(currentDate),
+                    openingBalance: day === 0 ? principal : simulationData[day - 1].closingBalance,
+                    dailyInterest: dailyInterest,
+                    accruedInterest: accruedInterest,
+                    payment: payment,
+                    toInterest: toInterest,
+                    toPrincipal: toPrincipal,
+                    closingBalance: currentPrincipal
+                });
+
+                // Stop if loan is fully paid
+                if (currentPrincipal <= 0) {
+                    break;
+                }
+            }
+
+            // Update formula display
+            document.getElementById('formulaFlatRate').textContent = formatNumber(flatRate, 2);
+            document.getElementById('formulaAnnualRate').textContent = formatNumber(aprRate, 2);
+            document.getElementById('formulaDaysInYear').textContent = daysInYear;
+            document.getElementById('formulaDaysInYear2').textContent = daysInYear;
+            document.getElementById('formulaDailyRate').textContent = formatNumber(dailyRatePercent, 6);
+            document.getElementById('formulaExamplePrincipal').textContent = formatNumber(principal, 2);
+            document.getElementById('formulaExampleRate').textContent = formatNumber(dailyRateDecimal, 8);
+            document.getElementById('formulaExampleInterest').textContent = formatNumber(principal * dailyRateDecimal, 4);
+
+            // Update summary
+            document.getElementById('summaryApr').textContent = formatNumber(aprRate, 2) + '%';
+            document.getElementById('summaryDailyRate').textContent = formatNumber(dailyRatePercent, 6) + '%';
+            document.getElementById('summaryTotalInterest').textContent = 'RM ' + formatNumber(totalInterestAccrued, 2);
+            document.getElementById('summaryTotalPayments').textContent = 'RM ' + formatNumber(totalPayments, 2);
+            document.getElementById('summaryPrincipalPaid').textContent = 'RM ' + formatNumber(totalPrincipalPaid, 2);
+            document.getElementById('summaryOutstanding').textContent = 'RM ' + formatNumber(currentPrincipal, 2);
+
+            // Render table
+            renderTable();
+
+            // Show sections
+            document.getElementById('summarySection').classList.remove('hidden');
+            document.getElementById('formulaSection').classList.remove('hidden');
+            document.getElementById('tableSection').classList.remove('hidden');
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('simulationBody');
+            tbody.innerHTML = '';
+
+            simulationData.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                // Highlight rows with payments
+                if (row.payment > 0) {
+                    tr.className = 'payment-row';
+                }
+
+                tr.innerHTML = `
+                    <td class="px-2 py-2 text-gray-700">${row.day}</td>
+                    <td class="px-2 py-2 text-gray-700">${formatDate(row.date)}</td>
+                    <td class="px-2 py-2 text-right text-gray-700">${formatNumber(row.openingBalance)}</td>
+                    <td class="px-2 py-2 text-right text-amber-600 font-medium">${formatNumber(row.dailyInterest, 4)}</td>
+                    <td class="px-2 py-2 text-right text-gray-500">${formatNumber(row.accruedInterest, 4)}</td>
+                    <td class="px-2 py-2 text-right ${row.payment > 0 ? 'text-green-600 font-semibold' : 'text-gray-300'}">${row.payment > 0 ? formatNumber(row.payment) : '-'}</td>
+                    <td class="px-2 py-2 text-right ${row.toInterest > 0 ? 'text-amber-600' : 'text-gray-300'}">${row.toInterest > 0 ? formatNumber(row.toInterest) : '-'}</td>
+                    <td class="px-2 py-2 text-right ${row.toPrincipal > 0 ? 'text-blue-600' : 'text-gray-300'}">${row.toPrincipal > 0 ? formatNumber(row.toPrincipal) : '-'}</td>
+                    <td class="px-2 py-2 text-right text-gray-900 font-medium">${formatNumber(row.closingBalance)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function downloadSimulation() {
+            if (simulationData.length === 0) {
+                alert('Run simulation first.');
+                return;
+            }
+
+            const flatRate = parseFloat(document.getElementById('flatRate').value) || 0;
+            const tenureMonths = parseInt(document.getElementById('tenureMonths').value) || 0;
+            const aprRate = computeApr(12, tenureMonths, flatRate);
+
+            let csv = `Flat Rate,${flatRate}%\nTenure,${tenureMonths} months\nAPR/EIR,${aprRate}%\n\n`;
+            csv += 'Day,Date,Opening Balance,Daily Interest,Accrued Interest,Payment,To Interest,To Principal,Closing Balance\n';
+            simulationData.forEach(row => {
+                csv += [
+                    row.day,
+                    row.date.toISOString().slice(0, 10),
+                    row.openingBalance.toFixed(2),
+                    row.dailyInterest.toFixed(4),
+                    row.accruedInterest.toFixed(4),
+                    row.payment.toFixed(2),
+                    row.toInterest.toFixed(2),
+                    row.toPrincipal.toFixed(2),
+                    row.closingBalance.toFixed(2)
+                ].join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reducing_balance_simulation_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize defaults
+        (function init() {
+            const today = new Date();
+            document.getElementById('startDate').value = today.toISOString().slice(0, 10);
+            
+            // Set default payment date to 30 days from now
+            const paymentDate = new Date(today);
+            paymentDate.setDate(paymentDate.getDate() + 30);
+            document.querySelector('.payment-date').value = paymentDate.toISOString().slice(0, 10);
+
+            // Add event listeners for live APR update
+            document.getElementById('flatRate').addEventListener('input', updateAprDisplay);
+            document.getElementById('tenureMonths').addEventListener('input', updateAprDisplay);
+
+            // Initial APR display
+            updateAprDisplay();
+        })();
+    </script>
+</body>
+</html>
