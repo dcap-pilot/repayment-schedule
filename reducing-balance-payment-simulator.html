@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repayment Schedule - Payment Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        body {
+            font-size: 90%;
+        }
+        .data-table th,
+        .data-table td {
+            font-size: 0.7rem;
+        }
+        .data-table input {
+            font-size: 0.7rem;
+        }
+        .overdue-row {
+            background-color: #fef2f2;
+        }
+        .paid-row {
+            background-color: #f0fdf4;
+        }
+        .partial-row {
+            background-color: #fffbeb;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-white min-h-screen pb-20">
+    <header class="border-b border-gray-100 sticky top-0 bg-white z-10">
+        <div class="max-w-6xl mx-auto px-4 py-4">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-lg font-semibold text-gray-900 tracking-tight">Repayment Schedule - Payment Simulator</h1>
+                    <p class="text-xs text-gray-500">Simulate payments, late charges, and postage fees</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-6">
+        <!-- Step 1: Loan Setup -->
+        <section class="mb-6">
+            <div class="mb-4">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Step 1: Loan Setup</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <label class="block text-xs text-gray-500 mb-1">Financing Amount (RM)</label>
+                    <input id="financingAmount" type="number" placeholder="10000" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                </div>
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <label class="block text-xs text-gray-500 mb-1">Flat Profit Rate (% p.a.)</label>
+                    <input id="flatRate" type="number" step="0.01" placeholder="10.00" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                </div>
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <label class="block text-xs text-gray-500 mb-1">Tenure (months)</label>
+                    <input id="tenureMonths" type="number" placeholder="48" min="1" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                </div>
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <label class="block text-xs text-gray-500 mb-1">Disbursement Date</label>
+                    <input id="disbursementDate" type="text" placeholder="dd-mm-yyyy" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-400">
+                </div>
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <label class="block text-xs text-gray-500 mb-1">Payment Day of Month</label>
+                    <input id="paymentDay" type="number" min="1" max="31" placeholder="25" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 2: Late Payment & Postage Settings -->
+        <section class="mb-6">
+            <div class="mb-4">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Step 2: Late Payment & Postage Settings</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <h3 class="text-xs font-semibold text-gray-700 mb-3">Late Payment Charges (LPC)</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">LPC Rate (% p.a.)</label>
+                            <input id="lpcRate" type="number" step="0.01" placeholder="8.00" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Grace Period (days)</label>
+                            <input id="gracePeriod" type="number" value="7" min="0" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">LPC charged on unpaid instalment after grace period</p>
+                </div>
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <h3 class="text-xs font-semibold text-gray-700 mb-3">Postage/Reminder Charges</h3>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Reminder Letter (14 days)</span>
+                            <span class="font-medium text-gray-800">RM <input id="postage1" type="number" value="15" class="w-12 px-1 py-0.5 border border-gray-200 rounded text-right text-xs"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">4th Schedule (30 days)</span>
+                            <span class="font-medium text-gray-800">RM <input id="postage2" type="number" value="30" class="w-12 px-1 py-0.5 border border-gray-200 rounded text-right text-xs"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Final Notice (44 days)</span>
+                            <span class="font-medium text-gray-800">RM <input id="postage3" type="number" value="50" class="w-12 px-1 py-0.5 border border-gray-200 rounded text-right text-xs"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Repo Order (51 days)</span>
+                            <span class="font-medium text-gray-800">RM <input id="postage4" type="number" value="50" class="w-12 px-1 py-0.5 border border-gray-200 rounded text-right text-xs"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Generate Button -->
+        <div class="mb-6">
+            <button onclick="generateSchedule()" class="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-all">Generate Schedule</button>
+        </div>
+
+        <!-- Summary Section -->
+        <section id="summarySection" class="hidden mb-6">
+            <div class="mb-4">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Loan Summary</h2>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">APR / EIR (%)</p>
+                    <p id="summaryApr" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Monthly Instalment</p>
+                    <p id="summaryInstalment" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Total Interest</p>
+                    <p id="summaryInterest" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Total Payable</p>
+                    <p id="summaryTotal" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Remaining Tenure</p>
+                    <p id="summaryRemainingTenure" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Simulation Summary -->
+        <section id="simulationSummary" class="hidden mb-6">
+            <div class="mb-4">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Simulation Summary</h2>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+                <div class="border border-green-100 rounded-lg p-3 bg-green-50">
+                    <p class="text-xs text-green-600">Total Paid</p>
+                    <p id="simTotalPaid" class="text-sm font-semibold text-green-800">RM 0.00</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Outstanding Principal</p>
+                    <p id="simOutstandingPrincipal" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Outstanding Interest</p>
+                    <p id="simOutstandingInterest" class="text-sm font-semibold text-gray-900">-</p>
+                </div>
+                <div class="border border-red-100 rounded-lg p-3 bg-red-50">
+                    <p class="text-xs text-red-600">Total LPC</p>
+                    <p id="simTotalLpc" class="text-sm font-semibold text-red-800">RM 0.00</p>
+                </div>
+                <div class="border border-amber-100 rounded-lg p-3 bg-amber-50">
+                    <p class="text-xs text-amber-600">Total Postage</p>
+                    <p id="simTotalPostage" class="text-sm font-semibold text-amber-800">RM 0.00</p>
+                </div>
+                <div class="border border-blue-100 rounded-lg p-3 bg-blue-50">
+                    <p class="text-xs text-blue-600">Total Outstanding</p>
+                    <p id="simTotalOutstanding" class="text-sm font-semibold text-blue-800">-</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Payment Simulation Input -->
+        <section id="paymentSection" class="hidden mb-6">
+            <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Add Payment</h2>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Payment Date</label>
+                        <input id="paymentDate" type="text" placeholder="dd-mm-yyyy" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Payment Amount (RM)</label>
+                        <input id="paymentAmount" type="number" placeholder="0.00" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-gray-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Reference/Notes</label>
+                        <input id="paymentRef" type="text" placeholder="Optional" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-400">
+                    </div>
+                    <div>
+                        <button onclick="addPayment()" class="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all">Add Payment</button>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-3">Payment allocation: LPC → Principal → Interest → Postage</p>
+            </div>
+        </section>
+
+        <!-- Repayment Schedule Table -->
+        <section id="tableSection" class="hidden">
+            <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Repayment Schedule</h2>
+                <div class="flex gap-2">
+                    <button onclick="recalculateSimulation()" class="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-all">Recalculate</button>
+                    <button onclick="downloadSchedule()" class="px-3 py-1 border border-gray-200 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50 transition-all">Download CSV</button>
+                </div>
+            </div>
+            <div class="border border-gray-100 rounded-xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full data-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-2 py-2 text-left font-medium text-gray-600">Mth</th>
+                                <th class="px-2 py-2 text-left font-medium text-gray-600">Due Date</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">Instalment</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">Principal</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">Interest</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">Balance</th>
+                                <th class="px-2 py-2 text-left font-medium text-gray-600">Payment Date</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">Paid</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">Days Late</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">LPC</th>
+                                <th class="px-2 py-2 text-right font-medium text-gray-600">Postage</th>
+                                <th class="px-2 py-2 text-left font-medium text-gray-600">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleBody" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Payment History -->
+        <section id="paymentHistorySection" class="hidden mt-6">
+            <div class="mb-4">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Payment History</h2>
+            </div>
+            <div class="border border-gray-100 rounded-xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full data-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-2 text-left font-medium text-gray-600">#</th>
+                                <th class="px-3 py-2 text-left font-medium text-gray-600">Date</th>
+                                <th class="px-3 py-2 text-right font-medium text-gray-600">Amount</th>
+                                <th class="px-3 py-2 text-right font-medium text-gray-600">→ LPC</th>
+                                <th class="px-3 py-2 text-right font-medium text-gray-600">→ Principal</th>
+                                <th class="px-3 py-2 text-right font-medium text-gray-600">→ Interest</th>
+                                <th class="px-3 py-2 text-right font-medium text-gray-600">→ Postage</th>
+                                <th class="px-3 py-2 text-left font-medium text-gray-600">Reference</th>
+                                <th class="px-3 py-2 text-center font-medium text-gray-600">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentHistoryBody" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Legend -->
+        <section class="mt-6">
+            <div class="border border-gray-100 rounded-xl p-4 bg-gray-50">
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Legend & Notes</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div>
+                        <h4 class="font-semibold text-gray-600 mb-1">Row Colors</h4>
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-green-100 border border-green-200"></span> Fully Paid</div>
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-amber-100 border border-amber-200"></span> Partial Payment</div>
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-red-100 border border-red-200"></span> Overdue</div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-600 mb-1">Late Payment Charges</h4>
+                        <ul class="text-gray-600 space-y-1">
+                            <li>• Charged after grace period expires</li>
+                            <li>• Calculated on unpaid instalment only</li>
+                            <li>• Does not compound on itself</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-600 mb-1">Payment Priority</h4>
+                        <ol class="text-gray-600 space-y-1 list-decimal ml-4">
+                            <li>Late Payment Charges (LPC)</li>
+                            <li>Principal</li>
+                            <li>Interest</li>
+                            <li>Postage Charges</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Global state
+        let scheduleData = [];
+        let paymentHistory = [];
+        let loanConfig = {};
+
+        // Utility functions
+        function formatNumber(num, decimals = 2) {
+            return num.toLocaleString('en-MY', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
+        function formatDate(date) {
+            const d = date.getDate().toString().padStart(2, '0');
+            const m = (date.getMonth() + 1).toString().padStart(2, '0');
+            const y = date.getFullYear();
+            return `${d}-${m}-${y}`;
+        }
+
+        function parseDateDMY(value) {
+            const parts = value.split('-').map(part => part.trim());
+            if (parts.length !== 3) return null;
+            const [dayRaw, monthRaw, yearRaw] = parts;
+            const day = parseInt(dayRaw, 10);
+            const month = parseInt(monthRaw, 10);
+            const year = parseInt(yearRaw, 10);
+            if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return null;
+            if (year < 1900 || month < 1 || month > 12 || day < 1 || day > 31) return null;
+            const date = new Date(year, month - 1, day);
+            if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+            return date;
+        }
+
+        function round2(value) {
+            return Math.round((value + Number.EPSILON) * 100) / 100;
+        }
+
+        function truncate2(value) {
+            return Math.trunc(value * 100) / 100;
+        }
+
+        function daysBetween(startDate, endDate) {
+            const msPerDay = 24 * 60 * 60 * 1000;
+            const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+            const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+            return Math.round((end - start) / msPerDay);
+        }
+
+        function getLastDayOfMonth(year, monthIndex) {
+            return new Date(year, monthIndex + 1, 0).getDate();
+        }
+
+        // Malaysia HP Formula: Flat Rate → APR/EIR
+        function computeApr(instalmentsPerYear, totalInstalments, ratePerAnnumPercent) {
+            const D6 = instalmentsPerYear;
+            const D7 = totalInstalments;
+            const D8 = ratePerAnnumPercent;
+            const numerator = 2 * D7 * D8 * (300 * D6 + D7 * D8);
+            const denominator = (2 * D7 * D7 * D8) + (300 * D6 * (D7 + 1));
+            return denominator === 0 ? 0 : round2(numerator / denominator);
+        }
+
+        function calculateMonthlyInstalment(principal, annualRatePercent, tenureMonths) {
+            const monthlyRate = annualRatePercent / 100 / 12;
+            if (monthlyRate === 0) return principal / tenureMonths;
+            const factor = Math.pow(1 + monthlyRate, tenureMonths);
+            return principal * (monthlyRate * factor) / (factor - 1);
+        }
+
+        function buildDueDates(disbursementDate, paymentDay, tenureMonths) {
+            const dates = [];
+            let year = disbursementDate.getFullYear();
+            let monthIndex = disbursementDate.getMonth();
+            for (let i = 0; i < tenureMonths; i++) {
+                monthIndex += 1;
+                if (monthIndex > 11) {
+                    monthIndex = 0;
+                    year += 1;
+                }
+                const lastDay = getLastDayOfMonth(year, monthIndex);
+                const day = Math.min(paymentDay, lastDay);
+                dates.push(new Date(year, monthIndex, day));
+            }
+            return dates;
+        }
+
+        function daysInYear(year) {
+            const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+            return isLeap ? 366 : 365;
+        }
+
+        // Generate the base repayment schedule
+        function generateSchedule() {
+            const financingAmount = parseFloat(document.getElementById('financingAmount').value) || 0;
+            const flatRate = parseFloat(document.getElementById('flatRate').value) || 0;
+            const tenureMonths = parseInt(document.getElementById('tenureMonths').value, 10) || 0;
+            const disbursementDateValue = document.getElementById('disbursementDate').value;
+            const paymentDay = parseInt(document.getElementById('paymentDay').value, 10) || 1;
+            const lpcRate = parseFloat(document.getElementById('lpcRate').value) || 0;
+            const gracePeriod = parseInt(document.getElementById('gracePeriod').value, 10) || 7;
+
+            const disbursementDate = parseDateDMY(disbursementDateValue);
+            if (!disbursementDate || financingAmount <= 0 || flatRate < 0 || tenureMonths <= 0) {
+                alert('Please enter valid financing amount, flat rate, tenure, and disbursement date (dd-mm-yyyy).');
+                return;
+            }
+
+            // Store config
+            loanConfig = {
+                financingAmount,
+                flatRate,
+                tenureMonths,
+                disbursementDate,
+                paymentDay,
+                lpcRate,
+                gracePeriod,
+                postage: {
+                    reminder: { days: 14, amount: parseFloat(document.getElementById('postage1').value) || 15 },
+                    schedule4: { days: 30, amount: parseFloat(document.getElementById('postage2').value) || 30 },
+                    finalNotice: { days: 44, amount: parseFloat(document.getElementById('postage3').value) || 50 },
+                    repoOrder: { days: 51, amount: parseFloat(document.getElementById('postage4').value) || 50 }
+                }
+            };
+
+            // Calculate APR and schedule
+            const aprRate = computeApr(12, tenureMonths, flatRate);
+            const totalInterestFlat = truncate2(financingAmount * (flatRate / 100) * (tenureMonths / 12));
+            const dueDates = buildDueDates(disbursementDate, paymentDay, tenureMonths);
+            
+            const baseInstalment = calculateMonthlyInstalment(financingAmount, aprRate, tenureMonths);
+            const roundedInstalment = Math.ceil(baseInstalment);
+
+            let openingBalance = financingAmount;
+            let lastDate = disbursementDate;
+            let totalInterestCharged = 0;
+            let totalPrincipalPaid = 0;
+            scheduleData = [];
+
+            dueDates.forEach((dueDate, index) => {
+                const days = daysBetween(lastDate, dueDate);
+                const yearDays = daysInYear(dueDate.getFullYear());
+                const interestRaw = openingBalance * (aprRate / 100) * (days / yearDays);
+                let interest = truncate2(interestRaw);
+                let instalment = roundedInstalment;
+                let principal = instalment - interest;
+
+                // Final instalment adjustment
+                if (index === dueDates.length - 1) {
+                    const remainingInterest = truncate2(totalInterestFlat - totalInterestCharged);
+                    const remainingPrincipal = truncate2(financingAmount - totalPrincipalPaid);
+                    interest = remainingInterest;
+                    principal = remainingPrincipal;
+                    instalment = principal + interest;
+                }
+
+                const closingBalance = Math.max(0, openingBalance - principal);
+
+                totalInterestCharged += interest;
+                totalPrincipalPaid += principal;
+
+                scheduleData.push({
+                    month: index + 1,
+                    dueDate,
+                    instalment: round2(instalment),
+                    principal: round2(principal),
+                    interest: round2(interest),
+                    openingBalance: round2(openingBalance),
+                    closingBalance: round2(closingBalance),
+                    // Simulation fields
+                    paymentDate: null,
+                    amountPaid: 0,
+                    daysLate: 0,
+                    lpc: 0,
+                    postage: 0,
+                    postageItems: [],
+                    status: 'pending',
+                    unpaidInstalment: round2(instalment),
+                    unpaidPrincipal: round2(principal),
+                    unpaidInterest: round2(interest),
+                    unpaidLpc: 0,
+                    unpaidPostage: 0
+                });
+
+                openingBalance = closingBalance;
+                lastDate = dueDate;
+            });
+
+            // Store summary values
+            loanConfig.aprRate = aprRate;
+            loanConfig.monthlyInstalment = roundedInstalment;
+            loanConfig.totalInterest = totalInterestFlat;
+            loanConfig.totalPayable = financingAmount + totalInterestFlat;
+
+            // Reset payment history
+            paymentHistory = [];
+
+            // Update UI
+            updateSummary();
+            renderSchedule();
+            updateSimulationSummary();
+
+            // Show sections
+            document.getElementById('summarySection').classList.remove('hidden');
+            document.getElementById('simulationSummary').classList.remove('hidden');
+            document.getElementById('paymentSection').classList.remove('hidden');
+            document.getElementById('tableSection').classList.remove('hidden');
+            document.getElementById('paymentHistorySection').classList.remove('hidden');
+        }
+
+        function updateSummary() {
+            document.getElementById('summaryApr').textContent = formatNumber(loanConfig.aprRate) + '%';
+            document.getElementById('summaryInstalment').textContent = 'RM ' + formatNumber(loanConfig.monthlyInstalment, 0);
+            document.getElementById('summaryInterest').textContent = 'RM ' + formatNumber(loanConfig.totalInterest);
+            document.getElementById('summaryTotal').textContent = 'RM ' + formatNumber(loanConfig.totalPayable);
+            
+            const remainingMonths = scheduleData.filter(r => r.status !== 'paid').length;
+            document.getElementById('summaryRemainingTenure').textContent = remainingMonths + ' months';
+        }
+
+        function calculateLpc(unpaidAmount, daysOverdue, gracePeriod, lpcRate) {
+            if (daysOverdue <= gracePeriod) return 0;
+            const effectiveDays = daysOverdue - gracePeriod;
+            return round2(unpaidAmount * (lpcRate / 100) * (effectiveDays / 365));
+        }
+
+        function calculatePostage(daysOverdue, postageConfig, existingPostageItems) {
+            let postage = 0;
+            const items = [];
+            
+            const checkAndAdd = (key, config) => {
+                if (daysOverdue >= config.days && !existingPostageItems.includes(key)) {
+                    postage += config.amount;
+                    items.push(key);
+                }
+            };
+
+            checkAndAdd('reminder', postageConfig.reminder);
+            checkAndAdd('schedule4', postageConfig.schedule4);
+            checkAndAdd('finalNotice', postageConfig.finalNotice);
+            checkAndAdd('repoOrder', postageConfig.repoOrder);
+
+            return { postage, items };
+        }
+
+        function addPayment() {
+            const paymentDateValue = document.getElementById('paymentDate').value;
+            const paymentAmount = parseFloat(document.getElementById('paymentAmount').value) || 0;
+            const paymentRef = document.getElementById('paymentRef').value || '';
+
+            const paymentDate = parseDateDMY(paymentDateValue);
+            if (!paymentDate) {
+                alert('Please enter a valid payment date (dd-mm-yyyy).');
+                return;
+            }
+            if (paymentAmount <= 0) {
+                alert('Please enter a valid payment amount.');
+                return;
+            }
+
+            // Add to payment history
+            const payment = {
+                id: Date.now(),
+                date: paymentDate,
+                amount: paymentAmount,
+                reference: paymentRef,
+                allocated: { lpc: 0, principal: 0, interest: 0, postage: 0 }
+            };
+            paymentHistory.push(payment);
+
+            // Clear inputs
+            document.getElementById('paymentDate').value = '';
+            document.getElementById('paymentAmount').value = '';
+            document.getElementById('paymentRef').value = '';
+
+            // Recalculate
+            recalculateSimulation();
+        }
+
+        function removePayment(paymentId) {
+            paymentHistory = paymentHistory.filter(p => p.id !== paymentId);
+            recalculateSimulation();
+        }
+
+        function recalculateSimulation() {
+            const today = new Date();
+            
+            // Reset all schedule rows
+            scheduleData.forEach(row => {
+                row.paymentDate = null;
+                row.amountPaid = 0;
+                row.daysLate = 0;
+                row.lpc = 0;
+                row.postage = 0;
+                row.postageItems = [];
+                row.status = 'pending';
+                row.unpaidInstalment = row.instalment;
+                row.unpaidPrincipal = row.principal;
+                row.unpaidInterest = row.interest;
+                row.unpaidLpc = 0;
+                row.unpaidPostage = 0;
+            });
+
+            // Reset payment allocations
+            paymentHistory.forEach(p => {
+                p.allocated = { lpc: 0, principal: 0, interest: 0, postage: 0 };
+            });
+
+            // Sort payments by date
+            const sortedPayments = [...paymentHistory].sort((a, b) => a.date - b.date);
+
+            // Process each payment
+            sortedPayments.forEach(payment => {
+                let remainingPayment = payment.amount;
+
+                // Find instalments that are due on or before payment date
+                for (let i = 0; i < scheduleData.length && remainingPayment > 0; i++) {
+                    const row = scheduleData[i];
+                    
+                    // Skip fully paid instalments
+                    if (row.status === 'paid') continue;
+
+                    // Calculate days overdue at time of payment
+                    const daysOverdue = Math.max(0, daysBetween(row.dueDate, payment.date));
+                    
+                    // Calculate LPC if applicable
+                    if (daysOverdue > loanConfig.gracePeriod) {
+                        const newLpc = calculateLpc(row.instalment, daysOverdue, loanConfig.gracePeriod, loanConfig.lpcRate);
+                        row.lpc = Math.max(row.lpc, newLpc);
+                        row.unpaidLpc = row.lpc - (row.lpc - row.unpaidLpc > 0 ? row.lpc - row.unpaidLpc : 0);
+                    }
+
+                    // Calculate postage if applicable
+                    if (daysOverdue > 0) {
+                        const postageResult = calculatePostage(daysOverdue, loanConfig.postage, row.postageItems);
+                        row.postage += postageResult.postage;
+                        row.unpaidPostage += postageResult.postage;
+                        row.postageItems = [...row.postageItems, ...postageResult.items];
+                    }
+
+                    // Update days late
+                    row.daysLate = Math.max(row.daysLate, daysOverdue);
+
+                    // Allocate payment: LPC → Principal → Interest → Postage
+                    // 1. LPC
+                    if (remainingPayment > 0 && row.unpaidLpc > 0) {
+                        const toLpc = Math.min(remainingPayment, row.unpaidLpc);
+                        row.unpaidLpc -= toLpc;
+                        remainingPayment -= toLpc;
+                        payment.allocated.lpc += toLpc;
+                    }
+
+                    // 2. Principal
+                    if (remainingPayment > 0 && row.unpaidPrincipal > 0) {
+                        const toPrincipal = Math.min(remainingPayment, row.unpaidPrincipal);
+                        row.unpaidPrincipal = round2(row.unpaidPrincipal - toPrincipal);
+                        remainingPayment = round2(remainingPayment - toPrincipal);
+                        payment.allocated.principal += toPrincipal;
+                    }
+
+                    // 3. Interest
+                    if (remainingPayment > 0 && row.unpaidInterest > 0) {
+                        const toInterest = Math.min(remainingPayment, row.unpaidInterest);
+                        row.unpaidInterest = round2(row.unpaidInterest - toInterest);
+                        remainingPayment = round2(remainingPayment - toInterest);
+                        payment.allocated.interest += toInterest;
+                    }
+
+                    // 4. Postage
+                    if (remainingPayment > 0 && row.unpaidPostage > 0) {
+                        const toPostage = Math.min(remainingPayment, row.unpaidPostage);
+                        row.unpaidPostage -= toPostage;
+                        remainingPayment -= toPostage;
+                        payment.allocated.postage += toPostage;
+                    }
+
+                    // Update row totals
+                    row.amountPaid = round2(row.instalment - row.unpaidPrincipal - row.unpaidInterest + (row.lpc - row.unpaidLpc) + (row.postage - row.unpaidPostage));
+                    row.unpaidInstalment = round2(row.unpaidPrincipal + row.unpaidInterest);
+
+                    // Update status
+                    if (row.unpaidPrincipal <= 0 && row.unpaidInterest <= 0) {
+                        row.status = 'paid';
+                        row.paymentDate = payment.date;
+                    } else if (row.amountPaid > 0) {
+                        row.status = 'partial';
+                        row.paymentDate = payment.date;
+                    }
+                }
+            });
+
+            // Mark overdue rows (not paid and past due date)
+            scheduleData.forEach(row => {
+                if (row.status === 'pending') {
+                    const daysOverdue = daysBetween(row.dueDate, today);
+                    if (daysOverdue > 0) {
+                        row.status = 'overdue';
+                        row.daysLate = daysOverdue;
+                        
+                        // Calculate current LPC
+                        if (daysOverdue > loanConfig.gracePeriod) {
+                            row.lpc = calculateLpc(row.instalment, daysOverdue, loanConfig.gracePeriod, loanConfig.lpcRate);
+                            row.unpaidLpc = row.lpc;
+                        }
+
+                        // Calculate current postage
+                        const postageResult = calculatePostage(daysOverdue, loanConfig.postage, row.postageItems);
+                        row.postage += postageResult.postage;
+                        row.unpaidPostage += postageResult.postage;
+                        row.postageItems = [...row.postageItems, ...postageResult.items];
+                    }
+                }
+            });
+
+            // Update UI
+            updateSummary();
+            renderSchedule();
+            renderPaymentHistory();
+            updateSimulationSummary();
+        }
+
+        function updateSimulationSummary() {
+            const totalPaid = paymentHistory.reduce((sum, p) => sum + p.amount, 0);
+            const outstandingPrincipal = scheduleData.reduce((sum, r) => sum + r.unpaidPrincipal, 0);
+            const outstandingInterest = scheduleData.reduce((sum, r) => sum + r.unpaidInterest, 0);
+            const totalLpc = scheduleData.reduce((sum, r) => sum + r.lpc, 0);
+            const unpaidLpc = scheduleData.reduce((sum, r) => sum + r.unpaidLpc, 0);
+            const totalPostage = scheduleData.reduce((sum, r) => sum + r.postage, 0);
+            const unpaidPostage = scheduleData.reduce((sum, r) => sum + r.unpaidPostage, 0);
+            const totalOutstanding = outstandingPrincipal + outstandingInterest + unpaidLpc + unpaidPostage;
+
+            document.getElementById('simTotalPaid').textContent = 'RM ' + formatNumber(totalPaid);
+            document.getElementById('simOutstandingPrincipal').textContent = 'RM ' + formatNumber(outstandingPrincipal);
+            document.getElementById('simOutstandingInterest').textContent = 'RM ' + formatNumber(outstandingInterest);
+            document.getElementById('simTotalLpc').textContent = 'RM ' + formatNumber(totalLpc);
+            document.getElementById('simTotalPostage').textContent = 'RM ' + formatNumber(totalPostage);
+            document.getElementById('simTotalOutstanding').textContent = 'RM ' + formatNumber(totalOutstanding);
+
+            // Update remaining tenure
+            const remainingMonths = scheduleData.filter(r => r.status !== 'paid').length;
+            document.getElementById('summaryRemainingTenure').textContent = remainingMonths + ' months';
+        }
+
+        function renderSchedule() {
+            const tbody = document.getElementById('scheduleBody');
+            tbody.innerHTML = '';
+
+            scheduleData.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                // Row color based on status
+                if (row.status === 'paid') tr.className = 'paid-row';
+                else if (row.status === 'partial') tr.className = 'partial-row';
+                else if (row.status === 'overdue') tr.className = 'overdue-row';
+
+                const statusBadge = {
+                    'pending': '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">Pending</span>',
+                    'paid': '<span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">Paid</span>',
+                    'partial': '<span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">Partial</span>',
+                    'overdue': '<span class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs">Overdue</span>'
+                };
+
+                tr.innerHTML = `
+                    <td class="px-2 py-2 text-gray-700">${row.month}</td>
+                    <td class="px-2 py-2 text-gray-700">${formatDate(row.dueDate)}</td>
+                    <td class="px-2 py-2 text-right text-gray-700">${formatNumber(row.instalment)}</td>
+                    <td class="px-2 py-2 text-right text-gray-700">${formatNumber(row.principal)}</td>
+                    <td class="px-2 py-2 text-right text-gray-700">${formatNumber(row.interest)}</td>
+                    <td class="px-2 py-2 text-right text-gray-900 font-medium">${formatNumber(row.closingBalance)}</td>
+                    <td class="px-2 py-2 text-gray-700">${row.paymentDate ? formatDate(row.paymentDate) : '-'}</td>
+                    <td class="px-2 py-2 text-right ${row.amountPaid > 0 ? 'text-green-600 font-medium' : 'text-gray-400'}">${row.amountPaid > 0 ? formatNumber(row.amountPaid) : '-'}</td>
+                    <td class="px-2 py-2 text-right ${row.daysLate > 0 ? 'text-red-600' : 'text-gray-400'}">${row.daysLate > 0 ? row.daysLate : '-'}</td>
+                    <td class="px-2 py-2 text-right ${row.lpc > 0 ? 'text-red-600 font-medium' : 'text-gray-400'}">${row.lpc > 0 ? formatNumber(row.lpc) : '-'}</td>
+                    <td class="px-2 py-2 text-right ${row.postage > 0 ? 'text-amber-600 font-medium' : 'text-gray-400'}">${row.postage > 0 ? formatNumber(row.postage) : '-'}</td>
+                    <td class="px-2 py-2">${statusBadge[row.status]}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderPaymentHistory() {
+            const tbody = document.getElementById('paymentHistoryBody');
+            tbody.innerHTML = '';
+
+            if (paymentHistory.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-gray-400 text-xs">No payments recorded yet</td></tr>';
+                return;
+            }
+
+            paymentHistory.forEach((payment, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-3 py-2 text-gray-700">${index + 1}</td>
+                    <td class="px-3 py-2 text-gray-700">${formatDate(payment.date)}</td>
+                    <td class="px-3 py-2 text-right text-green-600 font-medium">${formatNumber(payment.amount)}</td>
+                    <td class="px-3 py-2 text-right ${payment.allocated.lpc > 0 ? 'text-red-600' : 'text-gray-400'}">${payment.allocated.lpc > 0 ? formatNumber(payment.allocated.lpc) : '-'}</td>
+                    <td class="px-3 py-2 text-right ${payment.allocated.principal > 0 ? 'text-blue-600' : 'text-gray-400'}">${payment.allocated.principal > 0 ? formatNumber(payment.allocated.principal) : '-'}</td>
+                    <td class="px-3 py-2 text-right ${payment.allocated.interest > 0 ? 'text-purple-600' : 'text-gray-400'}">${payment.allocated.interest > 0 ? formatNumber(payment.allocated.interest) : '-'}</td>
+                    <td class="px-3 py-2 text-right ${payment.allocated.postage > 0 ? 'text-amber-600' : 'text-gray-400'}">${payment.allocated.postage > 0 ? formatNumber(payment.allocated.postage) : '-'}</td>
+                    <td class="px-3 py-2 text-gray-500 text-xs">${payment.reference || '-'}</td>
+                    <td class="px-3 py-2 text-center">
+                        <button onclick="removePayment(${payment.id})" class="text-gray-400 hover:text-red-500 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function downloadSchedule() {
+            if (scheduleData.length === 0) {
+                alert('Generate a schedule first.');
+                return;
+            }
+
+            let csv = 'Month,Due Date,Instalment,Principal,Interest,Balance,Payment Date,Amount Paid,Days Late,LPC,Postage,Status\n';
+            scheduleData.forEach(row => {
+                csv += [
+                    row.month,
+                    formatDate(row.dueDate),
+                    row.instalment.toFixed(2),
+                    row.principal.toFixed(2),
+                    row.interest.toFixed(2),
+                    row.closingBalance.toFixed(2),
+                    row.paymentDate ? formatDate(row.paymentDate) : '',
+                    row.amountPaid.toFixed(2),
+                    row.daysLate,
+                    row.lpc.toFixed(2),
+                    row.postage.toFixed(2),
+                    row.status
+                ].join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `payment_simulation_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
