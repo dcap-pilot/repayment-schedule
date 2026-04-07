@@ -6,232 +6,796 @@
     <title>Repayment Schedule Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
-        * {
-            font-family: 'Inter', sans-serif;
-            font-size: 80%;
-        }
-        html {
-            font-size: 100%;
-        }
+        * { font-family: 'Inter', sans-serif; }
+        body { font-size: 90%; }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .schedule-table th, .schedule-table td { font-size: 0.75rem; }
+        .method-btn { transition: all 0.15s ease; }
+        .method-btn.active { background-color: #111827; color: #fff; border-color: #111827; }
+        .method-btn:not(.active) { background-color: #fff; color: #374151; border-color: #e5e7eb; }
+        .method-btn:not(.active):hover { background-color: #f9fafb; border-color: #d1d5db; }
+        .flatpickr-calendar { font-family: 'Inter', sans-serif !important; border-radius: 12px !important; box-shadow: 0 10px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04) !important; border: 1px solid #e5e7eb !important; }
+        .flatpickr-calendar.arrowTop::before, .flatpickr-calendar.arrowTop::after { display: none; }
+        .flatpickr-months { border-radius: 12px 12px 0 0; padding: 4px 0; }
+        .flatpickr-day.selected, .flatpickr-day.selected:hover { background: #111827 !important; border-color: #111827 !important; }
+        .flatpickr-day.today:not(.selected) { border-color: #9ca3af !important; }
+        .flatpickr-day:hover { background: #f3f4f6 !important; border-color: #f3f4f6 !important; }
     </style>
     <script>
         tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        'inter': ['Inter', 'sans-serif'],
-                    },
-                }
-            }
+            theme: { extend: { fontFamily: { 'inter': ['Inter', 'sans-serif'] } } }
         }
     </script>
 </head>
-<body class="bg-white min-h-screen">
-    <!-- Header -->
-    <header class="border-b border-gray-100">
-        <div class="max-w-2xl mx-auto px-4 py-4">
+<body class="bg-white min-h-screen pb-20">
+    <header class="border-b border-gray-100 sticky top-0 bg-white z-10">
+        <div class="max-w-3xl mx-auto px-4 py-4">
             <h1 class="text-lg font-semibold text-gray-900 tracking-tight">Repayment Schedule Generator</h1>
+            <p class="text-xs text-gray-400 mt-0.5">Generate monthly instalment schedules for hire purchase financing</p>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="max-w-2xl mx-auto px-4 py-8">
-        <div class="mb-8">
-            <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Select Calculator</h2>
-        </div>
-
-        <!-- Calculator Cards -->
-        <div class="space-y-3">
-            <!-- Rule of 78 - Main Option -->
-            <div class="border border-gray-200 rounded-xl overflow-hidden transition-all duration-200">
-                <button onclick="toggleRule78Menu()" class="w-full p-5 text-left hover:bg-gray-50 transition-colors">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="font-semibold text-gray-900 text-base">Rule of 78</h3>
-                            <p class="text-sm text-gray-500 mt-1">Hire Purchase repayment schedule calculator</p>
-                        </div>
-                        <div class="text-gray-300 transition-transform duration-200" id="rule78Arrow">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"/>
-                            </svg>
-                        </div>
-                    </div>
+    <main class="max-w-3xl mx-auto px-4 py-6">
+        <!-- Method Selection -->
+        <section class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-3">Payment Calculation Method</label>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <button type="button" onclick="selectMethod('rule78')" class="method-btn active border rounded-xl px-3 py-3 text-left" id="btn-rule78">
+                    <span class="block text-sm font-semibold">Rule 78</span>
+                    <span class="block text-xs opacity-60 mt-0.5">Flat Rate</span>
                 </button>
-                
-                <!-- Sub-options (hidden by default) -->
-                <div id="rule78SubMenu" class="hidden border-t border-gray-100 bg-gray-50">
-                    <a href="rule78-calculator.html" class="block p-4 pl-8 hover:bg-gray-100 transition-colors border-b border-gray-100">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h4 class="font-medium text-gray-800 text-sm">Generate Single Repayment Schedule</h4>
-                                <p class="text-xs text-gray-500 mt-1">Calculate one repayment schedule</p>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </div>
-                    </a>
-                    <a href="rule78-bulk.html" class="block p-4 pl-8 hover:bg-gray-100 transition-colors">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h4 class="font-medium text-gray-800 text-sm">Generate Multiple Repayment Schedules</h4>
-                                <p class="text-xs text-gray-500 mt-1">Upload CSV to generate bulk schedules</p>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </div>
-                    </a>
-                </div>
-            </div>
-
-            <!-- EIR - Main Option -->
-            <div class="border border-gray-200 rounded-xl overflow-hidden transition-all duration-200">
-                <button onclick="toggleEirMenu()" class="w-full p-5 text-left hover:bg-gray-50 transition-colors">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="font-semibold text-base text-gray-900">EIR (Effective Interest Rate)</h3>
-                            <p class="text-sm text-gray-500 mt-1">Hire Purchase allocation using computed APR</p>
-                        </div>
-                        <div class="text-gray-300 transition-transform duration-200" id="eirArrow">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"/>
-                            </svg>
-                        </div>
-                    </div>
+                <button type="button" onclick="selectMethod('apr')" class="method-btn border rounded-xl px-3 py-3 text-left" id="btn-apr">
+                    <span class="block text-sm font-semibold">APR Allocation</span>
+                    <span class="block text-xs opacity-60 mt-0.5">Flat Rate</span>
                 </button>
-
-                <div id="eirSubMenu" class="hidden border-t border-gray-100 bg-gray-50">
-                    <a href="eir-calculator.html" class="block p-4 pl-8 hover:bg-gray-100 transition-colors border-b border-gray-100">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h4 class="font-medium text-gray-800 text-sm">Generate Single Repayment Schedule</h4>
-                                <p class="text-xs text-gray-500 mt-1">Calculate one EIR repayment schedule</p>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </div>
-                    </a>
-                    <a href="eir-bulk.html" class="block p-4 pl-8 hover:bg-gray-100 transition-colors">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h4 class="font-medium text-gray-800 text-sm">Generate Multiple Repayment Schedules</h4>
-                                <p class="text-xs text-gray-500 mt-1">Upload CSV to generate bulk EIR schedules</p>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </div>
-                    </a>
-                </div>
+                <button type="button" onclick="selectMethod('straight')" class="method-btn border rounded-xl px-3 py-3 text-left" id="btn-straight">
+                    <span class="block text-sm font-semibold">Straight Line</span>
+                    <span class="block text-xs opacity-60 mt-0.5">Flat Rate</span>
+                </button>
+                <button type="button" onclick="selectMethod('reducing')" class="method-btn border rounded-xl px-3 py-3 text-left" id="btn-reducing">
+                    <span class="block text-sm font-semibold">Reducing Balance</span>
+                    <span class="block text-xs opacity-60 mt-0.5">EIR</span>
+                </button>
             </div>
+        </section>
 
-            <!-- Placeholder for future calculators -->
-            <div class="border border-gray-100 rounded-xl p-5 opacity-40">
-                <div class="flex items-center justify-between">
+        <!-- Method Description -->
+        <section class="mb-6">
+            <div id="methodDesc" class="border border-gray-100 rounded-xl p-4 bg-gray-50 text-xs text-gray-600">
+                <p id="descText"></p>
+            </div>
+        </section>
+
+        <!-- Inputs -->
+        <section class="mb-6">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Financing Amount</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">RM</span>
+                        <input type="number" id="financingAmount" placeholder="10,000" inputmode="decimal"
+                            class="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 text-gray-900">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" id="rateLabel">Profit Rate (per annum) — Flat Rate</label>
+                    <div class="relative">
+                        <input type="number" id="profitRate" step="0.01" placeholder="10.00" inputmode="decimal"
+                            class="w-full pl-4 pr-12 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 text-gray-900">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Tenure</label>
+                    <div class="relative">
+                        <input type="number" id="tenure" placeholder="48" inputmode="numeric"
+                            class="w-full pl-4 pr-20 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 text-gray-900">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">months</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <h3 class="font-medium text-gray-400">Flat Rate Calculator</h3>
-                        <p class="text-sm text-gray-400 mt-1">Coming soon</p>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Agreement Date</label>
+                        <div class="relative">
+                            <input type="text" id="agreementDate" placeholder="Select date" readonly
+                                class="flatpickr-input w-full pl-4 pr-10 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 text-gray-900 cursor-pointer bg-white">
+                            <svg class="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
                     </div>
-                    <div class="text-gray-200">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/>
-                        </svg>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">1st Instalment Date</label>
+                        <div class="relative">
+                            <input type="text" id="firstInstalmentDate" placeholder="Auto-fills (Agreement + 1 month)" readonly
+                                class="flatpickr-input w-full pl-4 pr-10 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 text-gray-900 cursor-pointer bg-white">
+                            <svg class="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="border border-gray-200 rounded-xl overflow-hidden transition-all duration-200">
-                <button onclick="toggleReducingBalanceMenu()" class="w-full p-5 text-left hover:bg-gray-50 transition-colors">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="font-semibold text-gray-900 text-base">Reducing Balance</h3>
-                            <p class="text-sm text-gray-500 mt-1">Reducing balance repayment schedule</p>
-                        </div>
-                        <div class="text-gray-300 transition-transform duration-200" id="reducingBalanceArrow">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"/>
-                            </svg>
-                        </div>
-                    </div>
-                </button>
+            <button onclick="generateSchedule()" class="w-full py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 active:bg-black transition-all mt-6">
+                Generate Schedule
+            </button>
+        </section>
 
-                <div id="reducingBalanceSubMenu" class="hidden border-t border-gray-100 bg-gray-50">
-                    <a href="reducing-balance-daily.html" class="block p-4 pl-8 hover:bg-gray-100 transition-colors border-b border-gray-100">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h4 class="font-medium text-gray-800 text-sm">Repayment Schedule Generator</h4>
-                                <p class="text-xs text-gray-500 mt-1">Generate a reducing balance schedule</p>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </div>
-                    </a>
-                    <a href="reducing-balance-logic.html" class="block p-4 pl-8 hover:bg-gray-100 transition-colors">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h4 class="font-medium text-gray-800 text-sm">Logic Simulator</h4>
-                                <p class="text-xs text-gray-500 mt-1">Explore reducing balance calculations</p>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </div>
-                    </a>
+        <!-- Results -->
+        <div id="resultsSection" class="hidden">
+            <div class="border-t border-gray-100 my-6"></div>
+
+            <!-- Summary -->
+            <section class="mb-6">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Summary</h2>
+                <div id="summaryGrid" class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <!-- Populated by JS -->
                 </div>
-            </div>
+            </section>
+
+            <!-- Schedule Table -->
+            <section class="mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Repayment Schedule</h2>
+                    <button onclick="downloadCSV()" class="px-3 py-1.5 border border-gray-200 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50 transition-all">Download CSV</button>
+                </div>
+                <div class="border border-gray-100 rounded-xl overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full schedule-table">
+                            <thead class="bg-gray-50" id="tableHead">
+                                <!-- Populated by JS -->
+                            </thead>
+                            <tbody id="scheduleBody" class="divide-y divide-gray-50">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
         </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="fixed bottom-0 left-0 right-0 border-t border-gray-50 bg-white">
-        <div class="max-w-2xl mx-auto px-4 py-3">
-            <p class="text-xs text-gray-400 text-center">Loan Repayment Schedule Generator</p>
-        </div>
-    </footer>
 <script>
-        function toggleRule78Menu() {
-            const subMenu = document.getElementById('rule78SubMenu');
-            const arrow = document.getElementById('rule78Arrow');
-            
-            if (subMenu.classList.contains('hidden')) {
-                subMenu.classList.remove('hidden');
-                arrow.classList.add('rotate-180');
-            } else {
-                subMenu.classList.add('hidden');
-                arrow.classList.remove('rotate-180');
-            }
+    let currentMethod = 'rule78';
+    let scheduleRows = [];
+    let scheduleMeta = {};
+
+    const METHOD_DESCRIPTIONS = {
+        rule78: 'Rule 78 (Sum-of-Digits): Interest is pre-computed from flat rate. Earlier instalments carry a higher proportion of interest, decreasing over time. Same total interest and monthly instalment as other flat-rate methods — only the principal/interest split per month differs.',
+        apr: 'APR Allocation: Interest is pre-computed from flat rate (same total as Rule 78). The flat rate is converted to an APR, and the monthly interest portion is allocated as Outstanding Principal × APR ÷ 12. Early months have higher interest; later months lower — similar to Rule 78 but follows annuity logic.',
+        straight: 'Straight Line: Interest is pre-computed from flat rate (same total as Rule 78). The total interest is divided equally across all months — every month has the same interest portion. Principal portion is Instalment minus the equal interest.',
+        reducing: 'Reducing Balance (EIR): The rate entered is the Effective Interest Rate. Monthly instalment is computed using the PMT formula. Interest accrues daily on the outstanding principal from Agreement Date. Each payment first covers accrued interest, then reduces principal.'
+    };
+
+    // ─── Utilities ────────────────────────────────────────────
+
+    function round2(v) { return Math.round((v + Number.EPSILON) * 100) / 100; }
+    function truncate2(v) { return Math.trunc(v * 100) / 100; }
+
+    function formatNumber(num, decimals = 2) {
+        return num.toLocaleString('en-MY', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    }
+
+    function formatDateShort(d) {
+        return d.toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function parseDate(inputId) {
+        const fp = document.getElementById(inputId)._flatpickr;
+        if (!fp || fp.selectedDates.length === 0) return null;
+        return fp.selectedDates[0];
+    }
+
+    function daysBetween(a, b) {
+        const ms = 24 * 60 * 60 * 1000;
+        return Math.round((new Date(b.getFullYear(), b.getMonth(), b.getDate()) -
+                           new Date(a.getFullYear(), a.getMonth(), a.getDate())) / ms);
+    }
+
+    function isLeapYear(y) { return (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0); }
+    function daysInYear(y) { return isLeapYear(y) ? 366 : 365; }
+
+    function getLastDayOfMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+
+    // Build due dates from 1st instalment date forward
+    function buildDueDates(firstInstalmentDate, tenureMonths) {
+        const dates = [new Date(firstInstalmentDate)];
+        const payDay = firstInstalmentDate.getDate();
+        let y = firstInstalmentDate.getFullYear();
+        let m = firstInstalmentDate.getMonth();
+        for (let i = 1; i < tenureMonths; i++) {
+            m++;
+            if (m > 11) { m = 0; y++; }
+            const last = getLastDayOfMonth(y, m);
+            dates.push(new Date(y, m, Math.min(payDay, last)));
+        }
+        return dates;
+    }
+
+    // ─── Flat Rate Common ─────────────────────────────────────
+
+    function computeFlatTotals(principal, flatRate, tenure) {
+        const totalProfitRaw = principal * (flatRate / 100) * (tenure / 12);
+        const totalProfit = Math.ceil(totalProfitRaw);
+        const bop = principal + totalProfit;
+        const monthly = Math.ceil(bop / tenure);
+        const finalInst = bop - (monthly * (tenure - 1));
+        return { totalProfit, bop, monthly, finalInst: Math.ceil(finalInst) };
+    }
+
+    function computeApr(tenure, flatRate) {
+        const D6 = 12, D7 = tenure, D8 = flatRate;
+        const num = 2 * D7 * D8 * (300 * D6 + D7 * D8);
+        const den = (2 * D7 * D7 * D8) + (300 * D6 * (D7 + 1));
+        return den === 0 ? 0 : round2(num / den);
+    }
+
+    // ─── PMT (Reducing Balance) ──────────────────────────────
+
+    function computePMT(annualRatePct, tenureMonths, principal) {
+        const r = annualRatePct / 100 / 12;
+        if (r === 0) return Math.ceil(principal / tenureMonths);
+        const pmt = (principal * r * Math.pow(1 + r, tenureMonths)) / (Math.pow(1 + r, tenureMonths) - 1);
+        return Math.ceil(pmt);
+    }
+
+    // ─── Method Selection ────────────────────────────────────
+
+    function selectMethod(method) {
+        currentMethod = method;
+        ['rule78', 'apr', 'straight', 'reducing'].forEach(m => {
+            document.getElementById('btn-' + m).classList.toggle('active', m === method);
+        });
+
+        const rateLabel = document.getElementById('rateLabel');
+        const rateInput = document.getElementById('profitRate');
+
+        if (method === 'reducing') {
+            rateLabel.textContent = 'Profit Rate (per annum) — Effective Interest Rate (EIR)';
+            rateInput.placeholder = '17.00';
+        } else {
+            rateLabel.textContent = 'Profit Rate (per annum) — Flat Rate';
+            rateInput.placeholder = '10.00';
         }
 
-        function toggleEirMenu() {
-            const subMenu = document.getElementById('eirSubMenu');
-            const arrow = document.getElementById('eirArrow');
+        document.getElementById('descText').textContent = METHOD_DESCRIPTIONS[method];
 
-            if (subMenu.classList.contains('hidden')) {
-                subMenu.classList.remove('hidden');
-                arrow.classList.add('rotate-180');
-            } else {
-                subMenu.classList.add('hidden');
-                arrow.classList.remove('rotate-180');
-            }
+        // Hide results when switching method
+        document.getElementById('resultsSection').classList.add('hidden');
+    }
+
+    // ─── Generate Schedule ───────────────────────────────────
+
+    function generateSchedule() {
+        const principal = parseFloat(document.getElementById('financingAmount').value) || 0;
+        const rate = parseFloat(document.getElementById('profitRate').value) || 0;
+        const tenure = parseInt(document.getElementById('tenure').value) || 0;
+        const agreementDate = parseDate('agreementDate');
+        const firstInstDate = parseDate('firstInstalmentDate');
+
+        if (principal <= 0 || rate <= 0 || tenure <= 0) {
+            alert('Please enter valid Financing Amount, Profit Rate, and Tenure.');
+            return;
+        }
+        if (!agreementDate || !firstInstDate) {
+            alert('Please enter valid Agreement Date and 1st Instalment Date (dd-mm-yyyy).');
+            return;
+        }
+        if (firstInstDate <= agreementDate) {
+            alert('1st Instalment Date must be after Agreement Date.');
+            return;
         }
 
-        function toggleReducingBalanceMenu() {
-            const subMenu = document.getElementById('reducingBalanceSubMenu');
-            const arrow = document.getElementById('reducingBalanceArrow');
+        const dueDates = buildDueDates(firstInstDate, tenure);
 
-            if (subMenu.classList.contains('hidden')) {
-                subMenu.classList.remove('hidden');
-                arrow.classList.add('rotate-180');
+        switch (currentMethod) {
+            case 'rule78':    generateRule78(principal, rate, tenure, agreementDate, dueDates); break;
+            case 'apr':       generateAPR(principal, rate, tenure, agreementDate, dueDates); break;
+            case 'straight':  generateStraightLine(principal, rate, tenure, agreementDate, dueDates); break;
+            case 'reducing':  generateReducingBalance(principal, rate, tenure, agreementDate, dueDates); break;
+        }
+
+        document.getElementById('resultsSection').classList.remove('hidden');
+        document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ─── Rule 78 ─────────────────────────────────────────────
+
+    function generateRule78(principal, flatRate, tenure, agreementDate, dueDates) {
+        const { totalProfit, bop, monthly, finalInst } = computeFlatTotals(principal, flatRate, tenure);
+        const apr = computeApr(tenure, flatRate);
+        const sumOfDigits = (tenure * (tenure + 1)) / 2;
+
+        let balance = bop;
+        let profitPaidSoFar = 0;
+        scheduleRows = [];
+
+        for (let i = 0; i < tenure; i++) {
+            const month = i + 1;
+            const instalment = (month === tenure) ? finalInst : monthly;
+
+            const remainingPeriods = tenure - i;
+            let profit = Math.round((remainingPeriods / sumOfDigits) * totalProfit);
+            if (month === tenure) profit = Math.max(0, totalProfit - profitPaidSoFar);
+
+            const princPortion = instalment - profit;
+            balance -= instalment;
+
+            profitPaidSoFar += profit;
+
+            scheduleRows.push({
+                month,
+                dueDate: dueDates[i],
+                instalment,
+                principal: princPortion,
+                profit,
+                balance: month === tenure ? 0 : Math.max(0, balance)
+            });
+        }
+
+        scheduleMeta = {
+            method: 'Rule 78 (Flat Rate)',
+            financingAmount: principal,
+            flatRate,
+            apr,
+            tenure,
+            totalProfit,
+            bop,
+            monthly,
+            finalInst,
+            agreementDate
+        };
+
+        renderFlatRateSummary();
+        renderFlatRateTable('Profit R78');
+    }
+
+    // ─── APR Allocation ──────────────────────────────────────
+
+    function generateAPR(principal, flatRate, tenure, agreementDate, dueDates) {
+        const { totalProfit, bop, monthly, finalInst } = computeFlatTotals(principal, flatRate, tenure);
+        const apr = computeApr(tenure, flatRate);
+
+        let balance = bop;
+        let accumPrincipal = 0;
+        let profitPaidSoFar = 0;
+        scheduleRows = [];
+
+        for (let i = 0; i < tenure; i++) {
+            const month = i + 1;
+            const instalment = (month === tenure) ? finalInst : monthly;
+
+            const outstandingPrinc = principal - accumPrincipal;
+            let profit = round2(outstandingPrinc * (apr / 100) / 12);
+            if (month === tenure) {
+                profit = round2(totalProfit - profitPaidSoFar);
+                if (profit < 0) profit = 0;
+            }
+
+            const princPortion = round2(instalment - profit);
+            accumPrincipal = round2(accumPrincipal + princPortion);
+            profitPaidSoFar = round2(profitPaidSoFar + profit);
+            balance -= instalment;
+
+            scheduleRows.push({
+                month,
+                dueDate: dueDates[i],
+                instalment,
+                principal: princPortion,
+                profit,
+                balance: month === tenure ? 0 : Math.max(0, balance)
+            });
+        }
+
+        scheduleMeta = {
+            method: 'APR Allocation (Flat Rate)',
+            financingAmount: principal,
+            flatRate,
+            apr,
+            tenure,
+            totalProfit,
+            bop,
+            monthly,
+            finalInst,
+            agreementDate
+        };
+
+        renderFlatRateSummary();
+        renderFlatRateTable('Profit APR');
+    }
+
+    // ─── Straight Line ───────────────────────────────────────
+
+    function generateStraightLine(principal, flatRate, tenure, agreementDate, dueDates) {
+        const { totalProfit, bop, monthly, finalInst } = computeFlatTotals(principal, flatRate, tenure);
+        const apr = computeApr(tenure, flatRate);
+
+        const equalProfit = round2(totalProfit / tenure);
+        let balance = bop;
+        let profitPaidSoFar = 0;
+        scheduleRows = [];
+
+        for (let i = 0; i < tenure; i++) {
+            const month = i + 1;
+            const instalment = (month === tenure) ? finalInst : monthly;
+
+            let profit = equalProfit;
+            if (month === tenure) {
+                profit = round2(totalProfit - profitPaidSoFar);
+                if (profit < 0) profit = 0;
+            }
+
+            const princPortion = round2(instalment - profit);
+            profitPaidSoFar = round2(profitPaidSoFar + profit);
+            balance -= instalment;
+
+            scheduleRows.push({
+                month,
+                dueDate: dueDates[i],
+                instalment,
+                principal: princPortion,
+                profit,
+                balance: month === tenure ? 0 : Math.max(0, balance)
+            });
+        }
+
+        scheduleMeta = {
+            method: 'Straight Line (Flat Rate)',
+            financingAmount: principal,
+            flatRate,
+            apr,
+            tenure,
+            totalProfit,
+            bop,
+            monthly,
+            finalInst,
+            agreementDate
+        };
+
+        renderFlatRateSummary();
+        renderFlatRateTable('Profit SL');
+    }
+
+    // ─── Reducing Balance (EIR) ──────────────────────────────
+
+    function generateReducingBalance(principal, eir, tenure, agreementDate, dueDates) {
+        const monthly = computePMT(eir, tenure, principal);
+
+        let outstandingPrincipal = principal;
+        let totalInterestPaid = 0;
+        let totalPrincipalPaid = 0;
+        let lastDate = agreementDate;
+        scheduleRows = [];
+
+        for (let i = 0; i < tenure; i++) {
+            const dueDate = dueDates[i];
+            const days = daysBetween(lastDate, dueDate);
+            const yearDays = daysInYear(dueDate.getFullYear());
+
+            const interest = truncate2(outstandingPrincipal * (eir / 100) * (days / yearDays));
+
+            let instalment, princPortion;
+            if (i === tenure - 1) {
+                princPortion = round2(outstandingPrincipal);
+                instalment = round2(princPortion + interest);
             } else {
-                subMenu.classList.add('hidden');
-                arrow.classList.remove('rotate-180');
+                instalment = monthly;
+                princPortion = round2(instalment - interest);
+            }
+
+            outstandingPrincipal = round2(outstandingPrincipal - princPortion);
+            totalInterestPaid = round2(totalInterestPaid + interest);
+            totalPrincipalPaid = round2(totalPrincipalPaid + princPortion);
+
+            scheduleRows.push({
+                month: i + 1,
+                dueDate,
+                days,
+                instalment,
+                principal: princPortion,
+                interest,
+                balance: Math.max(0, outstandingPrincipal)
+            });
+
+            lastDate = dueDate;
+        }
+
+        scheduleMeta = {
+            method: 'Reducing Balance (EIR)',
+            financingAmount: principal,
+            eir,
+            tenure,
+            monthly,
+            totalInterest: totalInterestPaid,
+            totalPayable: round2(principal + totalInterestPaid),
+            agreementDate
+        };
+
+        renderReducingBalanceSummary();
+        renderReducingBalanceTable();
+    }
+
+    // ─── Render: Flat Rate Summary ───────────────────────────
+
+    function renderFlatRateSummary() {
+        const m = scheduleMeta;
+        const grid = document.getElementById('summaryGrid');
+        grid.innerHTML = `
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Method</p>
+                <p class="text-sm font-semibold text-gray-900">${m.method}</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Flat Rate</p>
+                <p class="text-lg font-semibold text-gray-900">${formatNumber(m.flatRate)}%</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">APR (Computed)</p>
+                <p class="text-lg font-semibold text-gray-900">${formatNumber(m.apr)}%</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Total Profit</p>
+                <p class="text-lg font-semibold text-gray-900">RM ${formatNumber(m.totalProfit)}</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Balance Ori Payable</p>
+                <p class="text-lg font-semibold text-gray-900">RM ${formatNumber(m.bop)}</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Monthly Instalment</p>
+                <p class="text-lg font-semibold text-gray-900">RM ${formatNumber(m.monthly)}</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Final Instalment</p>
+                <p class="text-lg font-semibold text-gray-900">RM ${formatNumber(m.finalInst)}</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Tenure</p>
+                <p class="text-lg font-semibold text-gray-900">${m.tenure} months</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Agreement Date</p>
+                <p class="text-sm font-semibold text-gray-900">${formatDateShort(m.agreementDate)}</p>
+            </div>
+        `;
+    }
+
+    // ─── Render: Flat Rate Table ─────────────────────────────
+
+    function renderFlatRateTable(profitColLabel) {
+        const thead = document.getElementById('tableHead');
+        thead.innerHTML = `<tr>
+            <th class="px-4 py-3 text-left font-medium text-gray-600">Month</th>
+            <th class="px-4 py-3 text-left font-medium text-gray-600">Due Date</th>
+            <th class="px-4 py-3 text-right font-medium text-gray-600">Instalment</th>
+            <th class="px-4 py-3 text-right font-medium text-gray-600">Principal</th>
+            <th class="px-4 py-3 text-right font-medium text-gray-600">${profitColLabel}</th>
+            <th class="px-4 py-3 text-right font-medium text-gray-600">Balance</th>
+        </tr>`;
+
+        const tbody = document.getElementById('scheduleBody');
+        tbody.innerHTML = '';
+
+        let totalInst = 0, totalPrinc = 0, totalProf = 0;
+
+        scheduleRows.forEach(row => {
+            totalInst += row.instalment;
+            totalPrinc += row.principal;
+            totalProf += row.profit;
+
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50 transition-colors';
+            tr.innerHTML = `
+                <td class="px-4 py-3 text-gray-900">${row.month}</td>
+                <td class="px-4 py-3 text-gray-700">${formatDateShort(row.dueDate)}</td>
+                <td class="px-4 py-3 text-right text-gray-900">${formatNumber(row.instalment)}</td>
+                <td class="px-4 py-3 text-right text-gray-600">${formatNumber(row.principal)}</td>
+                <td class="px-4 py-3 text-right text-gray-600">${formatNumber(row.profit)}</td>
+                <td class="px-4 py-3 text-right text-gray-900 font-medium">${formatNumber(row.balance)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        const totals = document.createElement('tr');
+        totals.className = 'bg-gray-50 font-medium';
+        totals.innerHTML = `
+            <td class="px-4 py-3 text-gray-900">Total</td>
+            <td class="px-4 py-3"></td>
+            <td class="px-4 py-3 text-right text-gray-900">${formatNumber(round2(totalInst))}</td>
+            <td class="px-4 py-3 text-right text-gray-900">${formatNumber(round2(totalPrinc))}</td>
+            <td class="px-4 py-3 text-right text-gray-900">${formatNumber(round2(totalProf))}</td>
+            <td class="px-4 py-3 text-right text-gray-900">-</td>
+        `;
+        tbody.appendChild(totals);
+    }
+
+    // ─── Render: Reducing Balance Summary ────────────────────
+
+    function renderReducingBalanceSummary() {
+        const m = scheduleMeta;
+        const grid = document.getElementById('summaryGrid');
+        grid.innerHTML = `
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Method</p>
+                <p class="text-sm font-semibold text-gray-900">${m.method}</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Effective Rate (EIR)</p>
+                <p class="text-lg font-semibold text-gray-900">${formatNumber(m.eir)}%</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Monthly Instalment (PMT)</p>
+                <p class="text-lg font-semibold text-gray-900">RM ${formatNumber(m.monthly)}</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Total Interest</p>
+                <p class="text-lg font-semibold text-gray-900">RM ${formatNumber(m.totalInterest)}</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Total Payable</p>
+                <p class="text-lg font-semibold text-gray-900">RM ${formatNumber(m.totalPayable)}</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Tenure</p>
+                <p class="text-lg font-semibold text-gray-900">${m.tenure} months</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">Agreement Date</p>
+                <p class="text-sm font-semibold text-gray-900">${formatDateShort(m.agreementDate)}</p>
+            </div>
+        `;
+    }
+
+    // ─── Render: Reducing Balance Table ──────────────────────
+
+    function renderReducingBalanceTable() {
+        const thead = document.getElementById('tableHead');
+        thead.innerHTML = `<tr>
+            <th class="px-4 py-3 text-left font-medium text-gray-600">Month</th>
+            <th class="px-4 py-3 text-left font-medium text-gray-600">Due Date</th>
+            <th class="px-4 py-3 text-right font-medium text-gray-600">Days</th>
+            <th class="px-4 py-3 text-right font-medium text-gray-600">Opening Bal</th>
+            <th class="px-4 py-3 text-right font-medium text-gray-600">Instalment</th>
+            <th class="px-4 py-3 text-right font-medium text-gray-600">Interest</th>
+            <th class="px-4 py-3 text-right font-medium text-gray-600">Principal</th>
+            <th class="px-4 py-3 text-right font-medium text-gray-600">Closing Bal</th>
+        </tr>`;
+
+        const tbody = document.getElementById('scheduleBody');
+        tbody.innerHTML = '';
+
+        let totalInst = 0, totalPrinc = 0, totalInt = 0;
+
+        scheduleRows.forEach((row, i) => {
+            totalInst += row.instalment;
+            totalPrinc += row.principal;
+            totalInt += row.interest;
+
+            const openBal = (i === 0) ? scheduleMeta.financingAmount : scheduleRows[i - 1].balance + scheduleRows[i - 1].principal;
+            const openingBalance = (i === 0) ? scheduleMeta.financingAmount : round2(row.balance + row.principal);
+
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50 transition-colors';
+            tr.innerHTML = `
+                <td class="px-4 py-3 text-gray-900">${row.month}</td>
+                <td class="px-4 py-3 text-gray-700">${formatDateShort(row.dueDate)}</td>
+                <td class="px-4 py-3 text-right text-gray-500">${row.days}</td>
+                <td class="px-4 py-3 text-right text-gray-700">${formatNumber(openingBalance)}</td>
+                <td class="px-4 py-3 text-right text-gray-900">${formatNumber(row.instalment)}</td>
+                <td class="px-4 py-3 text-right text-amber-600">${formatNumber(row.interest)}</td>
+                <td class="px-4 py-3 text-right text-blue-600">${formatNumber(row.principal)}</td>
+                <td class="px-4 py-3 text-right text-gray-900 font-medium">${formatNumber(row.balance)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        const totals = document.createElement('tr');
+        totals.className = 'bg-gray-50 font-medium';
+        totals.innerHTML = `
+            <td class="px-4 py-3 text-gray-900">Total</td>
+            <td class="px-4 py-3"></td>
+            <td class="px-4 py-3"></td>
+            <td class="px-4 py-3"></td>
+            <td class="px-4 py-3 text-right text-gray-900">${formatNumber(round2(totalInst))}</td>
+            <td class="px-4 py-3 text-right text-gray-900">${formatNumber(round2(totalInt))}</td>
+            <td class="px-4 py-3 text-right text-gray-900">${formatNumber(round2(totalPrinc))}</td>
+            <td class="px-4 py-3 text-right text-gray-900">-</td>
+        `;
+        tbody.appendChild(totals);
+    }
+
+    // ─── Download CSV ────────────────────────────────────────
+
+    function downloadCSV() {
+        if (scheduleRows.length === 0) { alert('Generate a schedule first.'); return; }
+
+        let csv = '';
+        const m = scheduleMeta;
+
+        // Header info
+        csv += `Method,${m.method}\n`;
+        csv += `Financing Amount,${m.financingAmount}\n`;
+        if (m.flatRate !== undefined) {
+            csv += `Flat Rate (%),${m.flatRate}\n`;
+            csv += `APR (%),${m.apr}\n`;
+            csv += `Total Profit,${m.totalProfit}\n`;
+            csv += `Balance Ori Payable,${m.bop}\n`;
+            csv += `Monthly Instalment,${m.monthly}\n`;
+            csv += `Final Instalment,${m.finalInst}\n`;
+        } else {
+            csv += `EIR (%),${m.eir}\n`;
+            csv += `Monthly Instalment (PMT),${m.monthly}\n`;
+            csv += `Total Interest,${m.totalInterest}\n`;
+            csv += `Total Payable,${m.totalPayable}\n`;
+        }
+        csv += `Tenure,${m.tenure}\n`;
+        csv += '\n';
+
+        if (currentMethod === 'reducing') {
+            csv += 'Month,Due Date,Days,Opening Balance,Instalment,Interest,Principal,Closing Balance\n';
+            scheduleRows.forEach((row, i) => {
+                const openBal = (i === 0) ? m.financingAmount : round2(row.balance + row.principal);
+                csv += `${row.month},${row.dueDate.toISOString().slice(0,10)},${row.days},${openBal.toFixed(2)},${row.instalment.toFixed(2)},${row.interest.toFixed(2)},${row.principal.toFixed(2)},${row.balance.toFixed(2)}\n`;
+            });
+        } else {
+            csv += 'Month,Due Date,Instalment,Principal,Profit,Balance\n';
+            scheduleRows.forEach(row => {
+                csv += `${row.month},${row.dueDate.toISOString().slice(0,10)},${row.instalment.toFixed(2)},${row.principal.toFixed(2)},${row.profit.toFixed(2)},${row.balance.toFixed(2)}\n`;
+            });
+        }
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `repayment_schedule_${currentMethod}_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // ─── Init ────────────────────────────────────────────────
+
+    function addOneMonth(date) {
+        const d = new Date(date);
+        d.setMonth(d.getMonth() + 1);
+        return d;
+    }
+
+    const fpConfig = {
+        dateFormat: 'd/m/Y',
+        altInput: false,
+        disableMobile: true,
+        animate: true,
+        monthSelectorType: 'dropdown'
+    };
+
+    const fpFirstInstalment = flatpickr('#firstInstalmentDate', { ...fpConfig });
+
+    flatpickr('#agreementDate', {
+        ...fpConfig,
+        onChange: function(selectedDates) {
+            if (selectedDates.length > 0) {
+                const autoDate = addOneMonth(selectedDates[0]);
+                fpFirstInstalment.setDate(autoDate, true);
             }
         }
-    </script>
+    });
+
+    selectMethod('rule78');
+
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') generateSchedule();
+    });
+</script>
 </body>
 </html>
-
