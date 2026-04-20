@@ -69,6 +69,15 @@
         <section class="mb-6">
             <div id="methodDesc" class="border border-gray-100 rounded-xl p-4 bg-gray-50 text-xs text-gray-600">
                 <p id="descText"></p>
+                <p id="reducingSimulatorLink" class="hidden mt-3 pt-3 border-t border-gray-200">
+                    <a href="loan-repayment-simulator.html" class="inline-flex items-center gap-1 text-blue-600 font-medium hover:text-blue-800 hover:underline">
+                        <span>Loan repayment simulator</span>
+                        <svg class="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                        </svg>
+                    </a>
+                    <span class="block text-[11px] text-gray-400 mt-1 font-normal">Day-by-day reducing balance simulation</span>
+                </p>
             </div>
         </section>
 
@@ -269,6 +278,7 @@
         }
 
         document.getElementById('descText').textContent = METHOD_DESCRIPTIONS[method];
+        document.getElementById('reducingSimulatorLink').classList.toggle('hidden', method !== 'reducing');
 
         // Hide results when switching method
         document.getElementById('resultsSection').classList.add('hidden');

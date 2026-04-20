@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan Repayment Simulator (Reducing Balance / EIR)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <style>
+        *{font-family:'Inter',sans-serif}body{font-size:90%}
+        input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+        input[type=number]{-moz-appearance:textfield}
+        .t th,.t td{font-size:.7rem;padding:5px 7px;white-space:nowrap}
+        .t th{position:sticky;top:0;z-index:2}
+        .badge{display:inline-block;padding:1px 8px;border-radius:9999px;font-size:.58rem;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+        .b-paid{background:#dcfce7;color:#166534}.b-overdue{background:#fee2e2;color:#991b1b}
+        .b-partial{background:#fef3c7;color:#92400e}.b-due{background:#dbeafe;color:#1e40af}
+        .b-pending{background:#f3f4f6;color:#6b7280}
+        .row-paid{background:#f0fdf4}.row-overdue{background:#fef2f2}.row-partial{background:#fffbeb}
+        .flatpickr-calendar{font-family:'Inter',sans-serif!important;border-radius:12px!important;box-shadow:0 10px 40px rgba(0,0,0,.08)!important;border:1px solid #e5e7eb!important}
+        .flatpickr-day.selected,.flatpickr-day.selected:hover{background:#111827!important;border-color:#111827!important}
+        .flatpickr-day.today:not(.selected){border-color:#9ca3af!important}
+        .flatpickr-calendar.arrowTop::before,.flatpickr-calendar.arrowTop::after{display:none}
+        .inp{width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px;font-size:.8rem;outline:none}
+        .inp:focus{border-color:#9ca3af;box-shadow:0 0 0 1px #9ca3af}
+        .btn{padding:7px 14px;border-radius:10px;font-size:.8rem;font-weight:500;cursor:pointer;transition:all .1s;border:none}
+        .btn-dark{background:#111827;color:#fff}.btn-dark:hover{background:#1f2937}
+        .btn-outline{background:#fff;color:#374151;border:1px solid #e5e7eb}.btn-outline:hover{background:#f9fafb}
+        .btn-sm{padding:4px 10px;font-size:.7rem}
+        .event{padding:6px 10px;border-radius:8px;font-size:.7rem;display:flex;justify-content:space-between;align-items:center}
+        .event+.event{margin-top:4px}
+    </style>
+</head>
+<body class="bg-white min-h-screen pb-20">
+
+<header class="border-b border-gray-100 sticky top-0 bg-white z-10">
+    <div class="px-8 py-4 flex items-start gap-4">
+        <a href="index.html" class="text-gray-400 hover:text-gray-600 transition-colors shrink-0 mt-0.5" title="Back to Repayment Schedule Generator" aria-label="Back to home">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </a>
+        <div>
+            <h1 class="text-lg font-semibold text-gray-900 tracking-tight">Loan Repayment Simulator</h1>
+            <p class="text-xs text-gray-400 mt-0.5">Reducing Balance (Effective Interest Rate) — simulate payments, late charges, and advance payments</p>
+        </div>
+    </div>
+</header>
+
+<main class="px-8 py-6">
+
+    <!-- SETUP -->
+    <section id="setupSection" class="mb-6">
+        <div class="border border-gray-200 rounded-xl overflow-hidden">
+            <div class="bg-gray-50 px-4 py-2.5 border-b border-gray-200">
+                <h2 class="text-xs font-semibold text-gray-700 uppercase tracking-wider">Loan Setup</h2>
+            </div>
+            <div class="p-4">
+                <div class="flex flex-wrap gap-x-6 gap-y-3">
+                    <!-- Loan Details -->
+                    <div class="flex items-end gap-3 flex-wrap">
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Amount (RM)</label>
+                            <input type="text" id="inpAmount" value="10,000.00" class="inp money" style="width:120px">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5">EIR (% p.a.)</label>
+                            <input type="number" id="inpRate" step="0.01" value="17" class="inp" style="width:80px">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Tenure (mths)</label>
+                            <input type="number" id="inpTenure" value="24" class="inp" style="width:70px">
+                        </div>
+                        <div class="border-l border-gray-200 pl-3">
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Disbursement</label>
+                            <input type="text" id="inpDisb" readonly class="inp flatpickr-input cursor-pointer bg-white" style="width:115px">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5">1st Instalment</label>
+                            <input type="text" id="inpFirst" readonly class="inp flatpickr-input cursor-pointer bg-white" style="width:115px">
+                        </div>
+                        <div class="border-l border-gray-200 pl-3">
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Late Rate (% p.a.)</label>
+                            <input type="number" id="inpLateRate" step="0.01" value="8" class="inp" style="width:70px">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Grace (days)</label>
+                            <input type="number" id="inpGrace" value="7" min="0" class="inp" style="width:60px">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Hierarchy (inline) -->
+                <div class="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100">
+                    <span class="text-[10px] text-gray-400 uppercase tracking-wider font-medium whitespace-nowrap">Hierarchy</span>
+                    <span class="text-[10px] text-gray-300 mr-1">(higher = paid first)</span>
+                    <div class="flex items-center gap-1"><span class="text-[11px] text-gray-600">Principal</span><select id="hierPrincipal" class="inp text-center" style="width:42px;padding:3px 2px;font-size:.7rem"><option value="4" selected>4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select></div>
+                    <div class="flex items-center gap-1"><span class="text-[11px] text-gray-600">Interest</span><select id="hierInterest" class="inp text-center" style="width:42px;padding:3px 2px;font-size:.7rem"><option value="4">4</option><option value="3" selected>3</option><option value="2">2</option><option value="1">1</option></select></div>
+                    <div class="flex items-center gap-1"><span class="text-[11px] text-gray-600">Late Chg</span><select id="hierLateChg" class="inp text-center" style="width:42px;padding:3px 2px;font-size:.7rem"><option value="4">4</option><option value="3">3</option><option value="2" selected>2</option><option value="1">1</option></select></div>
+                    <div class="flex items-center gap-1"><span class="text-[11px] text-gray-600">Other Chg</span><select id="hierOther" class="inp text-center" style="width:42px;padding:3px 2px;font-size:.7rem"><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1" selected>1</option></select></div>
+                </div>
+            </div>
+            <button onclick="init()" class="btn btn-dark w-full rounded-none text-xs py-2.5">Generate &amp; Start Simulation</button>
+        </div>
+    </section>
+
+    <!-- SIM -->
+    <div id="simSection" class="hidden">
+
+        <!-- Top bar: Date + Summary + Advance + Actions — all in one strip -->
+        <div class="flex flex-wrap items-stretch gap-3 mb-4">
+
+            <!-- Simulation Date -->
+            <div class="border border-gray-200 rounded-xl px-3 py-2">
+                <label class="block text-[10px] text-gray-400 uppercase tracking-wider font-medium mb-1">Simulation Date</label>
+                <div class="flex items-center gap-0.5">
+                    <button onclick="stepMonth(-1)" class="btn btn-outline btn-sm px-1" title="Previous due date">&#9664;</button>
+                    <button onclick="stepDay(-1)" class="btn btn-outline btn-sm px-1" title="Previous day" style="font-size:.55rem">&#9664;</button>
+                    <input type="text" id="inpToday" readonly class="inp flatpickr-input cursor-pointer bg-white" style="width:110px;padding:5px 8px">
+                    <button onclick="stepDay(1)" class="btn btn-outline btn-sm px-1" title="Next day" style="font-size:.55rem">&#9654;</button>
+                    <button onclick="stepMonth(1)" class="btn btn-outline btn-sm px-1" title="Next due date">&#9654;</button>
+                </div>
+            </div>
+
+            <!-- Loan Summary Cards (inline) -->
+            <div id="loanSummary" class="flex items-stretch gap-2 flex-1"></div>
+
+            <!-- Advance Card -->
+            <div id="advanceCard" class="border rounded-xl px-3 py-2 min-w-[160px]">
+                <!-- filled by JS -->
+            </div>
+
+        </div>
+
+        <!-- Actions row: Payment + Charge + Reset -->
+        <div class="flex flex-wrap items-end gap-3 mb-4">
+            <div class="flex items-end gap-2 border border-gray-100 rounded-xl px-3 py-2">
+                <span class="text-[10px] text-gray-400 uppercase tracking-wider font-medium self-center mr-1">Pay</span>
+                <div>
+                    <label class="block text-[10px] text-gray-400 mb-0.5">Date</label>
+                    <input type="text" id="payDate" readonly class="inp flatpickr-input cursor-pointer bg-white" style="width:110px;padding:5px 8px" placeholder="Date">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-gray-400 mb-0.5">Amount (RM)</label>
+                    <input type="text" id="payAmount" class="inp money" style="width:100px;padding:5px 8px" placeholder="421.00">
+                </div>
+                <button onclick="makePayment()" class="btn btn-dark btn-sm">Pay</button>
+            </div>
+            <div class="flex items-end gap-2 border border-gray-100 rounded-xl px-3 py-2">
+                <span class="text-[10px] text-gray-400 uppercase tracking-wider font-medium self-center mr-1">Charge</span>
+                <div>
+                    <label class="block text-[10px] text-gray-400 mb-0.5">Inst #</label>
+                    <input type="number" id="chgInst" class="inp" style="width:50px;padding:5px 8px" min="1" placeholder="#">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-gray-400 mb-0.5">Description</label>
+                    <input type="text" id="chgDesc" class="inp" style="width:110px;padding:5px 8px" placeholder="Letter fee">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-gray-400 mb-0.5">Amount (RM)</label>
+                    <input type="text" id="chgAmt" class="inp money" style="width:80px;padding:5px 8px" placeholder="50.00">
+                </div>
+                <button onclick="addCharge()" class="btn btn-dark btn-sm">Add</button>
+            </div>
+            <button onclick="resetSim()" class="btn btn-outline btn-sm text-red-500 border-red-200 hover:bg-red-50">Reset All</button>
+        </div>
+
+        <!-- Schedule Table -->
+        <section class="mb-4">
+            <h2 class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Repayment Schedule</h2>
+            <div class="border border-gray-100 rounded-xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full t">
+                        <thead class="bg-gray-50" id="tHead"></thead>
+                        <tbody id="tBody" class="divide-y divide-gray-50"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Event Log -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+                <h2 class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Payment Log</h2>
+                <div id="payLog" class="border border-gray-100 rounded-xl p-3 min-h-[50px]">
+                    <p class="text-xs text-gray-400">No payments yet.</p>
+                </div>
+            </div>
+            <div>
+                <h2 class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Charges Log</h2>
+                <div id="chgLog" class="border border-gray-100 rounded-xl p-3 min-h-[60px]">
+                    <p class="text-xs text-gray-400">No charges yet.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+
+<script>
+// ─── STATE ──────────────────────────────────────────────────
+var loan = {}, dueDates = [], schedule = [];
+var payments = [], charges = [];
+var advanceBalance = 0, simToday = new Date();
+
+// ─── UTILITIES ──────────────────────────────────────────────
+function round2(v){return Math.round((v+Number.EPSILON)*100)/100}
+function truncate2(v){return Math.trunc(v*100)/100}
+function fmt(n){return n.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function fmtD(d){return d.toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'numeric'})}
+function daysBetween(a,b){return Math.round((new Date(b.getFullYear(),b.getMonth(),b.getDate())-new Date(a.getFullYear(),a.getMonth(),a.getDate()))/864e5)}
+function isLeap(y){return(y%4===0&&y%100!==0)||y%400===0}
+function yrDays(y){return isLeap(y)?366:365}
+function lastDay(y,m){return new Date(y,m+1,0).getDate()}
+function buildDates(first,n){var d=[new Date(first)],p=first.getDate(),y=first.getFullYear(),m=first.getMonth();for(var i=1;i<n;i++){m++;if(m>11){m=0;y++}d.push(new Date(y,m,Math.min(p,lastDay(y,m))))}return d}
+function pmt(rate,n,p){var r=rate/100/12;if(r===0)return Math.ceil(p/n);return Math.ceil((p*r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1))}
+function parseMoney(id){return parseFloat(document.getElementById(id).value.replace(/,/g,''))||0}
+function fmtMoney(v){if(isNaN(v)||v===0)return '';return v.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2})}
+(function(){
+    document.addEventListener('DOMContentLoaded',function(){
+        var els=document.querySelectorAll('.money');
+        for(var i=0;i<els.length;i++){
+            els[i].addEventListener('focus',function(){
+                var raw=this.value.replace(/,/g,'');
+                if(raw==='0.00')raw='';
+                this.value=raw;this.select();
+            });
+            els[i].addEventListener('blur',function(){
+                var n=parseFloat(this.value.replace(/,/g,''))||0;
+                this.value=n?fmtMoney(n):'';
+            });
+            els[i].addEventListener('keypress',function(e){
+                if(e.key.length===1&&!/[\d.]/.test(e.key))e.preventDefault();
+            });
+        }
+    });
+})();
+function parseD(id){var fp=document.getElementById(id)._flatpickr;return fp&&fp.selectedDates.length?fp.selectedDates[0]:null}
+function adHocTotal(instNo){var t=0;for(var i=0;i<charges.length;i++)if(charges[i].instNo===instNo)t=round2(t+charges[i].amount);return t}
+
+// ─── RECALCULATE ────────────────────────────────────────────
+// Helper: allocate from pool[0] into row r per hierarchy, returns nothing (mutates)
+function allocRow(r, pool, hier) {
+    var ir = round2(r.interestDue - r.interestPaid);
+    var pr = round2(r.principalDue - r.principalPaid);
+    var lr = round2(r.lateCharges - r.lateChargesPaid);
+    var cr = round2(r.adHocTotal - r.adHocPaid);
+    for (var h = 0; h < hier.length; h++) {
+        if (pool[0] <= 0.005) break;
+        var k = hier[h].key, a;
+        if (k === 'interest')  { a = Math.min(pool[0], ir); r.interestPaid   = round2(r.interestPaid + a);   pool[0] = round2(pool[0] - a); ir = round2(ir - a); }
+        if (k === 'principal') { a = Math.min(pool[0], pr); r.principalPaid  = round2(r.principalPaid + a);  pool[0] = round2(pool[0] - a); pr = round2(pr - a); }
+        if (k === 'lateChg')   { a = Math.min(pool[0], lr); r.lateChargesPaid = round2(r.lateChargesPaid + a); pool[0] = round2(pool[0] - a); lr = round2(lr - a); }
+        if (k === 'otherChg')  { a = Math.min(pool[0], cr); r.adHocPaid      = round2(r.adHocPaid + a);      pool[0] = round2(pool[0] - a); cr = round2(cr - a); }
+    }
+}
+
+function calcLateChg(r, asOfDate) {
+    var dpd = daysBetween(r.dueDate, asOfDate);
+    if (dpd < 0) dpd = 0;
+    var chargeDays = dpd > loan.graceDays ? dpd : 0;
+    if (chargeDays <= 0) return;
+    var unpaid = round2(r.interestDue + r.principalDue - r.interestPaid - r.principalPaid);
+    if (unpaid <= 0.01) return;
+    var lc = truncate2(unpaid * (loan.lateRate / 100) * chargeDays / 365);
+    if (lc > r.lateCharges) r.lateCharges = lc;
+}
+
+function rowFullyPaid(r) {
+    var due = round2(r.interestDue + r.principalDue + r.adHocTotal + r.lateCharges);
+    var paid = round2(r.interestPaid + r.principalPaid + r.adHocPaid + r.lateChargesPaid);
+    return paid >= due - 0.01;
+}
+
+function recalculate() {
+    var sortedPay = payments.slice().sort(function(a, b) { return a.date - b.date; });
+
+    // Two iterations: 1st builds schedule with no-payment balance,
+    // 2nd recalculates interest using actual principalPaid from 1st.
+    var prevPP = [];
+    for (var iter = 0; iter < 2; iter++) {
+        var bal = loan.principal, prev = loan.disbDate;
+        schedule = [];
+
+        // STEP 1: Build rows — interest & principal per month
+        for (var i = 0; i < loan.tenure; i++) {
+            var dd = dueDates[i];
+            var billed = dd <= simToday;
+            var days = daysBetween(prev, dd);
+            var yDays = yrDays(dd.getFullYear());
+            var interest = truncate2(bal * (loan.eir / 100) * (days / yDays));
+            var princ = round2(loan.pmt - interest);
+            if (princ < 0) princ = 0;
+
+            schedule.push({
+                month: i + 1, dueDate: dd, days: days, instalment: loan.pmt,
+                interestDue: interest, principalDue: princ, openBal: bal,
+                adHocTotal: adHocTotal(i + 1),
+                lateCharges: 0, lateChargesPaid: 0, adHocPaid: 0,
+                interestPaid: 0, principalPaid: 0, totalPaid: 0,
+                status: 'pending', dpd: 0, closeBal: 0
+            });
+
+            if (billed) {
+                bal = round2(bal - (iter > 0 ? prevPP[i] : 0));
+            } else {
+                bal = round2(bal - princ);
+            }
+            schedule[i].closeBal = Math.max(0, bal);
+            prev = dd;
+        }
+
+        // STEP 2: Process payments chronologically
+        var pool = [0];
+        for (var p = 0; p < sortedPay.length; p++) {
+            var payDate = sortedPay[p].date;
+            pool[0] = round2(pool[0] + sortedPay[p].amount);
+
+            for (var j = 0; j < schedule.length; j++) {
+                if (pool[0] <= 0.005) break;
+                var r = schedule[j];
+                if (r.dueDate > payDate || r.dueDate > simToday) break;
+                if (rowFullyPaid(r)) continue;
+
+                calcLateChg(r, payDate);
+                allocRow(r, pool, loan.hierarchy);
+            }
+        }
+
+        // STEP 3: For remaining unpaid overdue instalments, update late charges to simToday
+        for (var j = 0; j < schedule.length; j++) {
+            var r = schedule[j];
+            if (r.dueDate > simToday) continue;
+
+            var dpd = daysBetween(r.dueDate, simToday);
+            r.dpd = dpd > 0 ? dpd : 0;
+
+            if (!rowFullyPaid(r)) {
+                calcLateChg(r, simToday);
+                if (pool[0] > 0.005) allocRow(r, pool, loan.hierarchy);
+            }
+
+            r.totalPaid = round2(r.lateChargesPaid + r.adHocPaid + r.interestPaid + r.principalPaid);
+            var totalDue = round2(r.lateCharges + r.adHocTotal + r.interestDue + r.principalDue);
+            if (r.totalPaid >= totalDue - 0.01) r.status = 'paid';
+            else if (r.totalPaid > 0) r.status = 'partial';
+            else r.status = r.dpd > 0 ? 'overdue' : 'due';
+        }
+
+        // Save principalPaid for next iteration's balance calc
+        prevPP = [];
+        for (var i = 0; i < schedule.length; i++) prevPP.push(schedule[i].principalPaid);
+    }
+
+    // Final balance recalc using actual principalPaid
+    var finalBal = loan.principal;
+    for (var i = 0; i < schedule.length; i++) {
+        var r = schedule[i];
+        r.openBal = finalBal;
+        if (r.dueDate <= simToday) {
+            finalBal = round2(finalBal - r.principalPaid);
+        } else {
+            finalBal = round2(finalBal - r.principalDue);
+        }
+        r.closeBal = Math.max(0, finalBal);
+    }
+
+    advanceBalance = Math.max(0, round2(pool[0]));
+}
+
+// ─── ACTIONS ────────────────────────────────────────────────
+function makePayment() {
+    var d = parseD('payDate');
+    var amt = parseMoney('payAmount');
+    if (!d) { alert('Please select a payment date.'); return; }
+    if (amt <= 0) { alert('Please enter a valid amount.'); return; }
+    payments.push({ id: payments.length + 1, date: d, amount: amt });
+    document.getElementById('payAmount').value = '';
+    recalculate(); renderAll();
+}
+
+function addCharge() {
+    var instNo = parseInt(document.getElementById('chgInst').value) || 0;
+    var desc = document.getElementById('chgDesc').value.trim();
+    var amt = parseMoney('chgAmt');
+    if (instNo < 1 || instNo > loan.tenure) { alert('Instalment # must be between 1 and ' + loan.tenure); return; }
+    if (!desc) { alert('Please enter a description.'); return; }
+    if (amt <= 0) { alert('Please enter a valid amount.'); return; }
+    charges.push({ id: charges.length + 1, instNo: instNo, desc: desc, amount: amt });
+    document.getElementById('chgInst').value = '';
+    document.getElementById('chgDesc').value = '';
+    document.getElementById('chgAmt').value = '';
+    recalculate(); renderAll();
+}
+
+function removePayment(idx) { payments.splice(idx, 1); recalculate(); renderAll(); }
+function removeCharge(idx) { charges.splice(idx, 1); recalculate(); renderAll(); }
+function resetSim() { payments = []; charges = []; recalculate(); renderAll(); }
+
+function stepDay(dir) {
+    simToday = new Date(simToday);
+    simToday.setDate(simToday.getDate() + dir);
+    fpToday.setDate(simToday, true);
+    recalculate(); renderAll();
+}
+
+function stepMonth(dir) {
+    if (dir > 0) {
+        for (var i = 0; i < dueDates.length; i++) {
+            if (dueDates[i] > simToday) { simToday = new Date(dueDates[i]); break; }
+            if (i === dueDates.length - 1) {
+                var nx = new Date(dueDates[i]); nx.setDate(nx.getDate() + 1); simToday = nx;
+            }
+        }
+    } else {
+        for (var j = dueDates.length - 1; j >= 0; j--) {
+            if (dueDates[j] < simToday) { simToday = new Date(dueDates[j]); break; }
+            if (j === 0) simToday = new Date(loan.disbDate);
+        }
+    }
+    fpToday.setDate(simToday, true);
+    recalculate(); renderAll();
+}
+
+// ─── RENDER ─────────────────────────────────────────────────
+function renderAll() { renderSummary(); renderAdvance(); renderTable(); renderPayLog(); renderChgLog(); }
+
+function renderSummary() {
+    var projInt = 0;
+    for (var i = 0; i < schedule.length; i++) projInt = round2(projInt + schedule[i].interestDue);
+    var projPayable = round2(loan.principal + projInt);
+
+    var intDiff = round2(projInt - loan.schedTotalInt);
+    var payDiff = round2(projPayable - loan.schedTotalPayable);
+
+    var card = function(label, val) {
+        return '<div class="border border-gray-100 rounded-xl px-3 py-2">' +
+            '<p class="text-[10px] text-gray-400 uppercase tracking-wider leading-tight">' + label + '</p>' +
+            '<p class="text-sm font-bold text-gray-900 mt-0.5">RM ' + fmt(val) + '</p></div>';
+    };
+    var dualCard = function(schedLabel, schedVal, projLabel, projVal, diff) {
+        var diffHtml = '';
+        if (Math.abs(diff) > 0.01) {
+            var sign = diff > 0 ? '+' : '';
+            diffHtml = '<span class="text-[9px] ' + (diff > 0 ? 'text-red-500' : 'text-emerald-500') + ' font-medium ml-1">(' + sign + fmt(diff) + ')</span>';
+        }
+        return '<div class="border border-gray-100 rounded-xl px-3 py-2">' +
+            '<p class="text-[10px] text-gray-400 uppercase tracking-wider leading-tight">' + schedLabel + '</p>' +
+            '<p class="text-[11px] text-gray-400 mt-0.5">RM ' + fmt(schedVal) + ' <span class="text-[9px]">scheduled</span></p>' +
+            '<p class="text-sm font-bold text-gray-900">RM ' + fmt(projVal) + diffHtml + '</p>' +
+            '<p class="text-[9px] text-gray-300 leading-tight">projected</p></div>';
+    };
+    document.getElementById('loanSummary').innerHTML =
+        card('PMT / Month', loan.pmt) +
+        card('Financing', loan.principal) +
+        dualCard('Total Interest', loan.schedTotalInt, 'Total Interest', projInt, intDiff) +
+        dualCard('Total Payable', loan.schedTotalPayable, 'Total Payable', projPayable, payDiff);
+}
+
+function renderAdvance() {
+    var el = document.getElementById('advanceCard');
+    if (advanceBalance > 0.01) {
+        el.className = 'border border-emerald-200 bg-emerald-50 rounded-xl px-3 py-2 min-w-[140px]';
+        el.innerHTML = '<p class="text-[10px] text-emerald-600 font-medium uppercase tracking-wider leading-tight">Advance (Credit)</p>' +
+            '<p class="text-sm font-bold text-emerald-700 mt-0.5">RM ' + fmt(advanceBalance) + '</p>';
+    } else {
+        el.className = 'border border-gray-100 bg-gray-50 rounded-xl px-3 py-2 min-w-[140px]';
+        el.innerHTML = '<p class="text-[10px] text-gray-400 font-medium uppercase tracking-wider leading-tight">Advance (Credit)</p>' +
+            '<p class="text-sm font-bold text-gray-300 mt-0.5">RM 0.00</p>';
+    }
+}
+
+function renderTable() {
+    document.getElementById('tHead').innerHTML =
+        '<tr>' +
+        '<th colspan="9" class="bg-gray-50"></th>' +
+        '<th colspan="4" class="text-center bg-emerald-50 text-emerald-700 text-[10px] uppercase tracking-wider font-semibold" style="border-left:2px solid #d1d5db;border-right:2px solid #d1d5db;border-bottom:none;padding-bottom:0">Payment Allocation</th>' +
+        '<th colspan="4" class="bg-gray-50"></th>' +
+        '</tr>' +
+        '<tr>' +
+        '<th class="text-center bg-gray-50">#</th>' +
+        '<th class="text-left bg-gray-50">Due Date</th>' +
+        '<th class="text-right bg-gray-50">Days</th>' +
+        '<th class="text-right bg-gray-50">Instalment</th>' +
+        '<th class="text-right bg-gray-50">Interest</th>' +
+        '<th class="text-right bg-gray-50">Principal</th>' +
+        '<th class="text-right bg-gray-50">Princ. Balance</th>' +
+        '<th class="text-right bg-gray-50">Charges</th>' +
+        '<th class="text-right bg-gray-50">Late Chg</th>' +
+        '<th class="text-right bg-emerald-50 text-emerald-700" style="border-left:2px solid #d1d5db">Int. Paid</th>' +
+        '<th class="text-right bg-emerald-50 text-emerald-700">Princ. Paid</th>' +
+        '<th class="text-right bg-emerald-50 text-emerald-700">Late Paid</th>' +
+        '<th class="text-right bg-emerald-50 text-emerald-700" style="border-right:2px solid #d1d5db">Chg. Paid</th>' +
+        '<th class="text-right bg-gray-50">Total Received</th>' +
+        '<th class="text-center bg-gray-50">Status</th>' +
+        '<th class="text-right bg-gray-50">DPD</th></tr>';
+
+    var html = '', tI = 0, tInt = 0, tP = 0, tRec = 0, tLC = 0, tChg = 0;
+    var tIntPd = 0, tPrPd = 0, tLCPd = 0, tChgPd = 0;
+    var billedCount = 0;
+
+    for (var i = 0; i < schedule.length; i++) {
+        var r = schedule[i];
+        if (r.status === 'pending') continue;
+
+        billedCount++;
+        var rc = r.status === 'paid' ? 'row-paid' : r.status === 'overdue' ? 'row-overdue' : r.status === 'partial' ? 'row-partial' : '';
+        var bc = 'b-' + r.status;
+        var statusLabel = r.status.charAt(0).toUpperCase() + r.status.slice(1);
+
+        tI += r.instalment; tInt += r.interestDue; tP += r.principalDue;
+        tRec += r.totalPaid; tLC += r.lateCharges; tChg += r.adHocTotal;
+        tIntPd += r.interestPaid; tPrPd += r.principalPaid; tLCPd += r.lateChargesPaid; tChgPd += r.adHocPaid;
+
+        var paidCell = function(v) { return '<td class="text-right ' + (v > 0.005 ? 'text-emerald-600 font-medium' : 'text-gray-300') + '">' + fmt(v) + '</td>'; };
+
+        html += '<tr class="hover:bg-gray-100/40 transition-colors ' + rc + '">' +
+            '<td class="text-center text-gray-900">' + r.month + '</td>' +
+            '<td class="text-gray-700">' + fmtD(r.dueDate) + '</td>' +
+            '<td class="text-right text-gray-500">' + r.days + '</td>' +
+            '<td class="text-right text-gray-900">' + fmt(r.instalment) + '</td>' +
+            '<td class="text-right text-amber-600">' + fmt(r.interestDue) + '</td>' +
+            '<td class="text-right text-blue-600">' + fmt(r.principalDue) + '</td>' +
+            '<td class="text-right text-gray-900 font-medium">' + fmt(r.closeBal) + '</td>' +
+            '<td class="text-right ' + (r.adHocTotal > 0 ? 'text-gray-700' : 'text-gray-300') + '">' + fmt(r.adHocTotal) + '</td>' +
+            '<td class="text-right ' + (r.lateCharges > 0 ? 'text-red-600 font-medium' : 'text-gray-300') + '">' + fmt(r.lateCharges) + '</td>' +
+            '<td class="text-right ' + (r.interestPaid > 0.005 ? 'text-emerald-600 font-medium' : 'text-gray-300') + '" style="border-left:2px solid #d1d5db">' + fmt(r.interestPaid) + '</td>' +
+            paidCell(r.principalPaid) +
+            paidCell(r.lateChargesPaid) +
+            '<td class="text-right ' + (r.adHocPaid > 0.005 ? 'text-emerald-600 font-medium' : 'text-gray-300') + '" style="border-right:2px solid #d1d5db">' + fmt(r.adHocPaid) + '</td>' +
+            '<td class="text-right ' + (r.totalPaid > 0.005 ? 'text-emerald-700 font-bold' : 'text-gray-300') + '">' + fmt(r.totalPaid) + '</td>' +
+            '<td class="text-center"><span class="badge ' + bc + '">' + statusLabel + '</span></td>' +
+            '<td class="text-right ' + (r.dpd > 0 && r.status !== 'paid' ? 'text-red-600 font-medium' : 'text-gray-400') + '">' + (r.dpd > 0 && r.status !== 'paid' ? r.dpd : '-') + '</td></tr>';
+    }
+
+    if (billedCount === 0) {
+        html += '<tr><td colspan="17" class="text-center text-gray-400 py-6">No instalments due yet. Advance the simulation date to see instalments appear.</td></tr>';
+    } else {
+        html += '<tr class="bg-gray-50 font-medium">' +
+            '<td class="text-gray-900">Tot</td><td></td><td></td>' +
+            '<td class="text-right text-gray-900">' + fmt(round2(tI)) + '</td>' +
+            '<td class="text-right text-gray-900">' + fmt(round2(tInt)) + '</td>' +
+            '<td class="text-right text-gray-900">' + fmt(round2(tP)) + '</td>' +
+            '<td class="text-right">-</td>' +
+            '<td class="text-right text-gray-900">' + fmt(round2(tChg)) + '</td>' +
+            '<td class="text-right text-gray-900">' + fmt(round2(tLC)) + '</td>' +
+            '<td class="text-right text-emerald-700" style="border-left:2px solid #d1d5db">' + fmt(round2(tIntPd)) + '</td>' +
+            '<td class="text-right text-emerald-700">' + fmt(round2(tPrPd)) + '</td>' +
+            '<td class="text-right text-emerald-700">' + fmt(round2(tLCPd)) + '</td>' +
+            '<td class="text-right text-emerald-700" style="border-right:2px solid #d1d5db">' + fmt(round2(tChgPd)) + '</td>' +
+            '<td class="text-right text-emerald-800 font-bold">' + fmt(round2(tRec)) + '</td>' +
+            '<td></td><td></td></tr>';
+    }
+
+    var pendingCount = schedule.length - billedCount;
+    if (pendingCount > 0) {
+        html += '<tr><td colspan="17" class="text-center text-gray-400 py-2 text-[11px]">' + pendingCount + ' more instalment' + (pendingCount > 1 ? 's' : '') + ' pending — advance the date to reveal</td></tr>';
+    }
+
+    document.getElementById('tBody').innerHTML = html;
+}
+
+function renderPayLog() {
+    var el = document.getElementById('payLog');
+    if (payments.length === 0) { el.innerHTML = '<p class="text-xs text-gray-400">No payments yet.</p>'; return; }
+    var html = '';
+    for (var i = 0; i < payments.length; i++) {
+        var p = payments[i];
+        html += '<div class="event bg-emerald-50 border border-emerald-100">' +
+            '<span class="text-emerald-800"><strong>#' + (i+1) + '</strong> &nbsp; ' + fmtD(p.date) + ' &nbsp; <strong>RM ' + fmt(p.amount) + '</strong></span>' +
+            '<button onclick="removePayment(' + i + ')" class="text-red-400 hover:text-red-600 text-xs ml-2" title="Remove">&#10005;</button></div>';
+    }
+    el.innerHTML = html;
+}
+
+function renderChgLog() {
+    var el = document.getElementById('chgLog');
+    if (charges.length === 0) { el.innerHTML = '<p class="text-xs text-gray-400">No charges yet.</p>'; return; }
+    var html = '';
+    for (var i = 0; i < charges.length; i++) {
+        var c = charges[i];
+        html += '<div class="event bg-amber-50 border border-amber-100">' +
+            '<span class="text-amber-800">Inst #' + c.instNo + ': <strong>' + c.desc + '</strong> — RM ' + fmt(c.amount) + '</span>' +
+            '<button onclick="removeCharge(' + i + ')" class="text-red-400 hover:text-red-600 text-xs ml-2" title="Remove">&#10005;</button></div>';
+    }
+    el.innerHTML = html;
+}
+
+// ─── INIT ───────────────────────────────────────────────────
+function init() {
+    var P = parseMoney('inpAmount');
+    var eir = parseFloat(document.getElementById('inpRate').value) || 0;
+    var n = parseInt(document.getElementById('inpTenure').value) || 0;
+    var disb = parseD('inpDisb');
+    var first = parseD('inpFirst');
+    var lr = parseFloat(document.getElementById('inpLateRate').value) || 0;
+    var grace = parseInt(document.getElementById('inpGrace').value) || 0;
+
+    if (P <= 0 || eir < 0 || n <= 0) { alert('Enter valid amount, rate, and tenure.'); return; }
+    if (!disb || !first) { alert('Select disbursement and 1st instalment dates.'); return; }
+    if (first <= disb) { alert('1st instalment date must be after disbursement.'); return; }
+
+    var hier = [
+        { key: 'principal',  prio: parseInt(document.getElementById('hierPrincipal').value) },
+        { key: 'interest',   prio: parseInt(document.getElementById('hierInterest').value) },
+        { key: 'lateChg',    prio: parseInt(document.getElementById('hierLateChg').value) },
+        { key: 'otherChg',   prio: parseInt(document.getElementById('hierOther').value) }
+    ].sort(function(a, b) { return b.prio - a.prio; });
+
+    var monthlyPmt = pmt(eir, n, P);
+    loan = { principal: P, eir: eir, tenure: n, disbDate: disb, firstDate: first, lateRate: lr, graceDays: grace, pmt: monthlyPmt, hierarchy: hier };
+    dueDates = buildDates(first, n);
+    payments = []; charges = [];
+
+    // Pre-compute original scheduled totals (assuming all payments on time)
+    var oBal = P, oPrev = disb, oTotalInt = 0;
+    for (var si = 0; si < n; si++) {
+        var sDd = dueDates[si];
+        var sDays = daysBetween(oPrev, sDd);
+        var sInt = truncate2(oBal * (eir / 100) * (sDays / yrDays(sDd.getFullYear())));
+        var sPrinc = round2(monthlyPmt - sInt);
+        if (sPrinc < 0) sPrinc = 0;
+        oTotalInt = round2(oTotalInt + sInt);
+        oBal = round2(oBal - sPrinc);
+        oPrev = sDd;
+    }
+    loan.schedTotalInt = oTotalInt;
+    loan.schedTotalPayable = round2(P + oTotalInt);
+
+    // Start with today = disbursement date (nothing due yet)
+    simToday = new Date(disb);
+    fpToday.setDate(simToday, true);
+    fpPayDate.setDate(simToday, true);
+
+    recalculate();
+    document.getElementById('simSection').classList.remove('hidden');
+    renderAll();
+    document.getElementById('simSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Flatpickr setup
+var fpCfg = { dateFormat: 'd/m/Y', disableMobile: true, animate: true, monthSelectorType: 'dropdown' };
+var fpFirst = flatpickr('#inpFirst', fpCfg);
+var today = new Date();
+var firstDefault = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+flatpickr('#inpDisb', Object.assign({}, fpCfg, {
+    defaultDate: today,
+    onChange: function(s) { if (s.length) { var x = new Date(s[0]); x.setMonth(x.getMonth()+1); fpFirst.setDate(x, true); } }
+}));
+fpFirst.setDate(firstDefault, true);
+
+var fpToday = flatpickr('#inpToday', Object.assign({}, fpCfg, {
+    onChange: function(s) { if (s.length && schedule.length) { simToday = s[0]; recalculate(); renderAll(); } }
+}));
+var fpPayDate = flatpickr('#payDate', fpCfg);
+</script>
+</body>
+</html>
