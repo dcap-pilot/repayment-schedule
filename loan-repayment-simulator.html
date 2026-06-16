@@ -258,13 +258,14 @@ function allocRow(r, pool, hier) {
 }
 
 function calcLateChg(r, asOfDate) {
-    var dpd = daysBetween(r.dueDate, asOfDate);
-    if (dpd < 0) dpd = 0;
+    var rawDays = daysBetween(r.dueDate, asOfDate);
+    if (rawDays < 0) rawDays = 0;
+    var dpd = rawDays + 1;
     var chargeDays = dpd > loan.graceDays ? dpd : 0;
     if (chargeDays <= 0) return;
     var unpaid = round2(r.interestDue + r.principalDue - r.interestPaid - r.principalPaid);
     if (unpaid <= 0.01) return;
-    var lc = truncate2(unpaid * (loan.lateRate / 100) * chargeDays / 365);
+    var lc = Math.round(unpaid * (loan.lateRate / 100) * chargeDays / 365 * 10) / 10;
     if (lc > r.lateCharges) r.lateCharges = lc;
 }
 
